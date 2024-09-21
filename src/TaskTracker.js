@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, CheckCircle, Circle } from 'lucide-react';
+import { PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, CheckCircle, Circle, ChevronDown } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
@@ -169,6 +169,71 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
   );
 };
 
+const OverviewTask = ({ task, level, onNavigate }) => {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className={`ml-${level * 4}`}>
+      <div 
+        className="flex items-center py-2 px-4 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+        onClick={() => onNavigate(task)}
+      >
+        {task.subtasks && task.subtasks.length > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mr-2 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              setExpanded(!expanded);
+            }}
+          >
+            <ChevronDown
+              size={16}
+              className={`transition-transform ${expanded ? 'transform rotate-180' : ''}`}
+            />
+          </Button>
+        )}
+        <span className={`${task.completed ? 'line-through text-gray-500' : ''}`}>
+          {task.title}
+        </span>
+      </div>
+      {expanded && task.subtasks && task.subtasks.length > 0 && (
+        <div>
+          {task.subtasks.map(subtask => (
+            <OverviewTask
+              key={subtask.id}
+              task={subtask}
+              level={level + 1}
+              onNavigate={onNavigate}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const Overview = ({ tasks, onNavigate }) => {
+  return (
+    <Card className="mt-6">
+      <CardHeader>
+        <h2 className="text-2xl font-bold text-gray-800">Task Overview</h2>
+      </CardHeader>
+      <CardContent>
+        {tasks.map(task => (
+          <OverviewTask
+            key={task.id}
+            task={task}
+            level={0}
+            onNavigate={onNavigate}
+          />
+        ))}
+      </CardContent>
+    </Card>
+  );
+};
+
 const TaskTracker = () => {
   const [taskHierarchy, setTaskHierarchy] = useState([
     {
@@ -186,6 +251,8 @@ const TaskTracker = () => {
   const [editingTask, setEditingTask] = useState(null);
   const [editedTaskTitle, setEditedTaskTitle] = useState('');
   const [deletingTask, setDeletingTask] = useState(null);
+  const [showOverview, setShowOverview] = useState(false);
+  const [allTasks, setAllTasks] = useState([]);
 
   const currentLevel = taskHierarchy[taskHierarchy.length - 1] || { tasks: [] };
 
@@ -232,9 +299,40 @@ const TaskTracker = () => {
     }
   }, []);
 
+  const fetchAllTasks = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      const taskMap = new Map();
+      data.forEach(task => taskMap.set(task.id, { ...task, subtasks: [] }));
+
+      data.forEach(task => {
+        if (task.parent_id && taskMap.has(task.parent_id)) {
+          taskMap.get(task.parent_id).subtasks.push(taskMap.get(task.id));
+        }
+      });
+
+      const rootTasks = Array.from(taskMap.values()).filter(task => !task.parent_id);
+      setAllTasks(rootTasks);
+    } catch (error) {
+      console.error('Error fetching all tasks:', error);
+      setError('Failed to fetch all tasks. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]);
+    fetchAllTasks();
+  }, [fetchTasks, fetchAllTasks]);
 
   const navigateToTask = async (task) => {
     if (!task || !task.id) {
@@ -260,6 +358,7 @@ const TaskTracker = () => {
         title: task.title,
         tasks: data || []
       }]);
+      setShowOverview(false);
     } catch (error) {
       console.error('Error fetching subtasks:', error);
       setError('Failed to open task matrix. Please try again.');
@@ -334,6 +433,7 @@ const TaskTracker = () => {
   
       // Fetch tasks again to ensure consistency
       await fetchTasks(currentLevel.id === null ? null : currentLevel.id);
+      await fetchAllTasks();
     } catch (error) {
       console.error('Error adding task:', error);
       setError('Failed to add task. Please try again.');
@@ -384,6 +484,7 @@ const TaskTracker = () => {
 
       setEditingTask(null);
       setEditedTaskTitle('');
+      await fetchAllTasks();
     } catch (error) {
       console.error('Error updating task:', error);
       setError('Failed to update task. Please try again.');
@@ -445,6 +546,7 @@ const TaskTracker = () => {
       });
 
       setDeletingTask(null);
+      await fetchAllTasks();
     } catch (error) {
       console.error('Error deleting task:', error);
       setError('Failed to delete task. Please try again.');
@@ -479,6 +581,7 @@ const TaskTracker = () => {
         return updated;
       });
 
+      await fetchAllTasks();
     } catch (error) {
       console.error('Error toggling task completion:', error);
       setError('Failed to update task. Please try again.');
@@ -538,6 +641,19 @@ const TaskTracker = () => {
         >
           {currentLevel.title}
         </motion.h1>
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          className="ml-auto"
+        >
+          <Button 
+            variant="outline" 
+            onClick={() => setShowOverview(!showOverview)}
+            className="bg-white hover:bg-blue-50 transition-colors"
+          >
+            {showOverview ? 'Hide Overview' : 'Show Overview'}
+          </Button>
+        </motion.div>
       </div>
       <AnimatePresence>
         {addingTask && (
@@ -577,20 +693,32 @@ const TaskTracker = () => {
           </motion.div>
         )}
       </AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
-      >
-        <EisenhowerMatrix 
-          tasks={currentLevel.tasks} 
-          onOpenMatrix={navigateToTask}
-          onAddTask={startAddingTask}
-          onEditTask={startEditingTask}
-          onDeleteTask={startDeletingTask}
-          onToggleComplete={toggleTaskCompletion}
-        />
-      </motion.div>
+      <AnimatePresence>
+        {showOverview ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+          >
+            <Overview tasks={allTasks} onNavigate={navigateToTask} />
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+          >
+            <EisenhowerMatrix 
+              tasks={currentLevel.tasks} 
+              onOpenMatrix={navigateToTask}
+              onAddTask={startAddingTask}
+              onEditTask={startEditingTask}
+              onDeleteTask={startDeletingTask}
+              onToggleComplete={toggleTaskCompletion}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <AlertDialog open={deletingTask !== null} onOpenChange={() => setDeletingTask(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
