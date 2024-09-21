@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, CheckCircle, Circle, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, CheckCircle, Circle, ChevronDown, X, Menu } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
@@ -20,7 +20,7 @@ const Breadcrumb = ({ hierarchy, onNavigate }) => (
   <motion.div 
     initial={{ opacity: 0, y: -20 }}
     animate={{ opacity: 1, y: 0 }}
-    className="flex items-center mb-6 text-sm text-gray-600"
+    className="flex items-center mb-4 text-sm text-gray-600 overflow-x-auto whitespace-nowrap"
   >
     {hierarchy.map((level, index) => (
       <React.Fragment key={level.id || index}>
@@ -31,7 +31,7 @@ const Breadcrumb = ({ hierarchy, onNavigate }) => (
         >
           {level.title}
         </Button>
-        {index < hierarchy.length - 1 && <ChevronRight size={16} className="mx-2 text-gray-400" />}
+        {index < hierarchy.length - 1 && <ChevronRight size={16} className="mx-2 text-gray-400 flex-shrink-0" />}
       </React.Fragment>
     ))}
   </motion.div>
@@ -46,7 +46,7 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
-      className={`mb-3 flex items-center p-3 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
+      className={`mb-3 flex items-center p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
     >
       <Button
         variant="ghost"
@@ -64,15 +64,15 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }
       <Button 
         variant="ghost" 
         size="sm"
-        className="mr-2 text-blue-600 hover:text-blue-800 transition-colors"
+        className="ml-2 text-blue-600 hover:text-blue-800 transition-colors"
         onClick={() => onOpenMatrix(task)}
       >
-        Open Matrix
+        <ChevronRight size={16} />
       </Button>
       <Button 
         variant="ghost" 
         size="sm"
-        className="mr-2 text-gray-600 hover:text-gray-800 transition-colors"
+        className="ml-2 text-gray-600 hover:text-gray-800 transition-colors"
         onClick={() => onEditTask(task)}
       >
         <Edit size={16} />
@@ -80,7 +80,7 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }
       <Button 
         variant="ghost" 
         size="sm"
-        className="text-red-600 hover:text-red-800 transition-colors"
+        className="ml-2 text-red-600 hover:text-red-800 transition-colors"
         onClick={() => onDeleteTask(task)}
       >
         <Trash2 size={16} />
@@ -90,7 +90,7 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }
 };
 
 const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete }) => (
-  <Card className="h-full overflow-hidden">
+  <Card className="h-full overflow-hidden shadow-lg">
     <CardHeader className="font-semibold flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
       <span className="text-lg text-gray-800">{title}</span>
       <Button variant="outline" size="sm" onClick={() => onAddTask(title)} className="bg-white hover:bg-blue-50 transition-colors">
@@ -116,55 +116,49 @@ const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDel
 );
 
 const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete }) => {
+  const [activeQuadrant, setActiveQuadrant] = useState('Urgent & Important');
+  
   const filterTasks = (urgent, important) => 
     (tasks || []).filter(t => 
       t?.urgent === urgent && 
       t?.important === important
     );
 
-  const urgentImportant = filterTasks(true, true);
-  const urgentNotImportant = filterTasks(true, false);
-  const notUrgentImportant = filterTasks(false, true);
-  const notUrgentNotImportant = filterTasks(false, false);
+  const quadrants = [
+    { title: 'Urgent & Important', tasks: filterTasks(true, true) },
+    { title: 'Urgent & Not Important', tasks: filterTasks(true, false) },
+    { title: 'Not Urgent & Important', tasks: filterTasks(false, true) },
+    { title: 'Not Urgent & Not Important', tasks: filterTasks(false, false) },
+  ];
 
   return (
-    <div className="grid grid-cols-2 gap-6">
-      <QuadrantCard 
-        title="Urgent & Important" 
-        tasks={urgentImportant} 
-        onOpenMatrix={onOpenMatrix}
-        onAddTask={onAddTask}
-        onEditTask={onEditTask}
-        onDeleteTask={onDeleteTask}
-        onToggleComplete={onToggleComplete}
-      />
-      <QuadrantCard 
-        title="Urgent & Not Important" 
-        tasks={urgentNotImportant} 
-        onOpenMatrix={onOpenMatrix}
-        onAddTask={onAddTask}
-        onEditTask={onEditTask}
-        onDeleteTask={onDeleteTask}
-        onToggleComplete={onToggleComplete}
-      />
-      <QuadrantCard 
-        title="Not Urgent & Important" 
-        tasks={notUrgentImportant} 
-        onOpenMatrix={onOpenMatrix}
-        onAddTask={onAddTask}
-        onEditTask={onEditTask}
-        onDeleteTask={onDeleteTask}
-        onToggleComplete={onToggleComplete}
-      />
-      <QuadrantCard 
-        title="Not Urgent & Not Important" 
-        tasks={notUrgentNotImportant} 
-        onOpenMatrix={onOpenMatrix}
-        onAddTask={onAddTask}
-        onEditTask={onEditTask}
-        onDeleteTask={onDeleteTask}
-        onToggleComplete={onToggleComplete}
-      />
+    <div className="flex flex-col space-y-4">
+      <div className="flex overflow-x-auto pb-2">
+        {quadrants.map(quadrant => (
+          <Button
+            key={quadrant.title}
+            variant={activeQuadrant === quadrant.title ? 'default' : 'outline'}
+            className="mr-2 whitespace-nowrap"
+            onClick={() => setActiveQuadrant(quadrant.title)}
+          >
+            {quadrant.title}
+          </Button>
+        ))}
+      </div>
+      {quadrants.map(quadrant => (
+        activeQuadrant === quadrant.title && (
+          <QuadrantCard
+            key={quadrant.title}
+            title={quadrant.title}
+            tasks={quadrant.tasks}
+            onOpenMatrix={onOpenMatrix}
+            onAddTask={onAddTask}
+            onEditTask={onEditTask}
+            onDeleteTask={onDeleteTask}
+            onToggleComplete={onToggleComplete}
+          />
+        )
+      ))}
     </div>
   );
 };
@@ -216,7 +210,7 @@ const OverviewTask = ({ task, level, onNavigate }) => {
 
 const Overview = ({ tasks, onNavigate }) => {
   return (
-    <Card className="mt-6">
+    <Card className="mt-6 shadow-lg">
       <CardHeader>
         <h2 className="text-2xl font-bold text-gray-800">Task Overview</h2>
       </CardHeader>
@@ -253,12 +247,28 @@ const TaskTracker = () => {
   const [deletingTask, setDeletingTask] = useState(null);
   const [showOverview, setShowOverview] = useState(false);
   const [allTasks, setAllTasks] = useState([]);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const currentLevel = taskHierarchy[taskHierarchy.length - 1] || { tasks: [] };
+
+  const menuRef = useRef(null);
 
   useEffect(() => {
     console.log('Task hierarchy updated:', taskHierarchy);
   }, [taskHierarchy]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   const fetchTasks = useCallback(async (parentId = null) => {
     setLoading(true);
@@ -404,7 +414,6 @@ const TaskTracker = () => {
         parent_id: currentLevel.id === null ? null : currentLevel.id,
         completed: false
       };
-  
       console.log('Adding new task:', newTask);
   
       const { data, error } = await supabase
@@ -591,7 +600,7 @@ const TaskTracker = () => {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen">
+    <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <motion.div
         animate={{
           scale: [1, 1.2, 1],
@@ -612,7 +621,7 @@ const TaskTracker = () => {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded"
+      className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-md"
     >
       <p className="font-bold">Error</p>
       <p>{error}</p>
@@ -620,41 +629,59 @@ const TaskTracker = () => {
   );
 
   return (
-    <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
-      <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} />
-      <div className="flex items-center mb-8">
-        {taskHierarchy.length > 1 && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
+    <div className="p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center">
+          {taskHierarchy.length > 1 && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <Button variant="outline" onClick={navigateBack} className="mr-4 bg-white hover:bg-blue-50 transition-colors shadow-md">
+                <ChevronLeft size={16} className="mr-2" />
+                Back
+              </Button>
+            </motion.div>
+          )}
+          <motion.h1 
+            className="text-2xl md:text-3xl font-bold text-gray-800 truncate"
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
           >
-            <Button variant="outline" onClick={navigateBack} className="mr-4 bg-white hover:bg-blue-50 transition-colors">
-              <ChevronLeft size={16} className="mr-2" />
-              Back
-            </Button>
-          </motion.div>
-        )}
-        <motion.h1 
-          className="text-3xl font-bold text-gray-800"
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {currentLevel.title}
-        </motion.h1>
-        <motion.div
-          initial={{ opacity: 0, x: 20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="ml-auto"
-        >
-          <Button 
-            variant="outline" 
-            onClick={() => setShowOverview(!showOverview)}
-            className="bg-white hover:bg-blue-50 transition-colors"
+            {currentLevel.title}
+          </motion.h1>
+        </div>
+        <div className="relative" ref={menuRef}>
+          <Button
+            variant="outline"
+            className="bg-white hover:bg-blue-50 transition-colors shadow-md"
+            onClick={() => setMenuOpen(!menuOpen)}
           >
-            {showOverview ? 'Hide Overview' : 'Show Overview'}
+            <Menu size={16} />
           </Button>
-        </motion.div>
+          {menuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10"
+            >
+              <Button
+                variant="ghost"
+                className="w-full text-left"
+                onClick={() => {
+                  setShowOverview(!showOverview);
+                  setMenuOpen(false);
+                }}
+              >
+                {showOverview ? 'Hide Overview' : 'Show Overview'}
+              </Button>
+              {/* Add more menu items here */}
+            </motion.div>
+          )}
+        </div>
       </div>
+      <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} />
       <AnimatePresence>
         {addingTask && (
           <motion.div 
@@ -669,8 +696,10 @@ const TaskTracker = () => {
               placeholder="Enter new task title"
               className="mr-2 flex-grow"
             />
-            <Button onClick={addNewTask} className="bg-blue-500 hover:bg-blue-600 text-white transition-colors">Add Task</Button>
-            <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">Cancel</Button>
+            <Button onClick={addNewTask} className="bg-blue-500 hover:bg-blue-600 text-white transition-colors shadow-md">Add</Button>
+            <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">
+              <X size={16} />
+            </Button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -688,8 +717,10 @@ const TaskTracker = () => {
               placeholder="Edit task title"
               className="mr-2 flex-grow"
             />
-            <Button onClick={saveEditedTask} className="bg-green-500 hover:bg-green-600 text-white transition-colors">Save</Button>
-            <Button variant="ghost" onClick={() => setEditingTask(null)} className="ml-2">Cancel</Button>
+            <Button onClick={saveEditedTask} className="bg-green-500 hover:bg-green-600 text-white transition-colors shadow-md">Save</Button>
+            <Button variant="ghost" onClick={() => setEditingTask(null)} className="ml-2">
+              <X size={16} />
+            </Button>
           </motion.div>
         )}
       </AnimatePresence>
