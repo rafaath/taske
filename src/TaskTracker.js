@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, CheckCircle, Circle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
@@ -13,33 +14,57 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./components/ui/alert-dialog";
-import { getTasks, addTask, updateTask, deleteTask } from './kv';
+import { supabase } from './supabaseClient';
 
 const Breadcrumb = ({ hierarchy, onNavigate }) => (
-  <div className="flex items-center mb-4 text-sm text-gray-600">
+  <motion.div 
+    initial={{ opacity: 0, y: -20 }}
+    animate={{ opacity: 1, y: 0 }}
+    className="flex items-center mb-6 text-sm text-gray-600"
+  >
     {hierarchy.map((level, index) => (
-      <React.Fragment key={level.id}>
+      <React.Fragment key={level.id || index}>
         <Button 
           variant="link" 
-          className="p-0 h-auto font-normal"
+          className="p-0 h-auto font-normal hover:text-blue-600 transition-colors"
           onClick={() => onNavigate(index)}
         >
           {level.title}
         </Button>
-        {index < hierarchy.length - 1 && <ChevronRight size={16} className="mx-2" />}
+        {index < hierarchy.length - 1 && <ChevronRight size={16} className="mx-2 text-gray-400" />}
       </React.Fragment>
     ))}
-  </div>
+  </motion.div>
 );
 
-const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask }) => {
+const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }) => {
+  if (!task || !task.id) return null;
+  
   return (
-    <div className="mb-2 flex items-center">
-      <span className="flex-grow">{task.title}</span>
+    <motion.div 
+      layout
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -20 }}
+      className={`mb-3 flex items-center p-3 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
+    >
+      <Button
+        variant="ghost"
+        size="sm"
+        className="mr-3 p-0"
+        onClick={() => onToggleComplete(task)}
+      >
+        {task.completed ? (
+          <CheckCircle size={20} className="text-green-500" />
+        ) : (
+          <Circle size={20} className="text-gray-300" />
+        )}
+      </Button>
+      <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : ''}`}>{task.title}</span>
       <Button 
         variant="ghost" 
         size="sm"
-        className="mr-2"
+        className="mr-2 text-blue-600 hover:text-blue-800 transition-colors"
         onClick={() => onOpenMatrix(task)}
       >
         Open Matrix
@@ -47,7 +72,7 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask }) => {
       <Button 
         variant="ghost" 
         size="sm"
-        className="mr-2"
+        className="mr-2 text-gray-600 hover:text-gray-800 transition-colors"
         onClick={() => onEditTask(task)}
       >
         <Edit size={16} />
@@ -55,45 +80,55 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask }) => {
       <Button 
         variant="ghost" 
         size="sm"
+        className="text-red-600 hover:text-red-800 transition-colors"
         onClick={() => onDeleteTask(task)}
       >
         <Trash2 size={16} />
       </Button>
-    </div>
+    </motion.div>
   );
 };
 
-const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask }) => (
-  <Card className="h-full">
-    <CardHeader className="font-semibold flex justify-between items-center">
-      <span>{title}</span>
-      <Button variant="outline" size="sm" onClick={() => onAddTask(title)}>
+const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete }) => (
+  <Card className="h-full overflow-hidden">
+    <CardHeader className="font-semibold flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
+      <span className="text-lg text-gray-800">{title}</span>
+      <Button variant="outline" size="sm" onClick={() => onAddTask(title)} className="bg-white hover:bg-blue-50 transition-colors">
         <PlusCircle size={16} className="mr-2" />
         Add Task
       </Button>
     </CardHeader>
-    <CardContent>
-      {tasks.map(task => (
-        <Task 
-          key={task.id} 
-          task={task} 
-          onOpenMatrix={onOpenMatrix}
-          onEditTask={onEditTask}
-          onDeleteTask={onDeleteTask}
-        />
-      ))}
+    <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
+      <AnimatePresence>
+        {(tasks || []).filter(task => task && task.id).map(task => (
+          <Task 
+            key={task.id} 
+            task={task} 
+            onOpenMatrix={onOpenMatrix}
+            onEditTask={onEditTask}
+            onDeleteTask={onDeleteTask}
+            onToggleComplete={onToggleComplete}
+          />
+        ))}
+      </AnimatePresence>
     </CardContent>
   </Card>
 );
 
-const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask }) => {
-  const urgentImportant = tasks.filter(t => t.urgent && t.important);
-  const urgentNotImportant = tasks.filter(t => t.urgent && !t.important);
-  const notUrgentImportant = tasks.filter(t => !t.urgent && t.important);
-  const notUrgentNotImportant = tasks.filter(t => !t.urgent && !t.important);
+const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete }) => {
+  const filterTasks = (urgent, important) => 
+    (tasks || []).filter(t => 
+      t?.urgent === urgent && 
+      t?.important === important
+    );
+
+  const urgentImportant = filterTasks(true, true);
+  const urgentNotImportant = filterTasks(true, false);
+  const notUrgentImportant = filterTasks(false, true);
+  const notUrgentNotImportant = filterTasks(false, false);
 
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 gap-6">
       <QuadrantCard 
         title="Urgent & Important" 
         tasks={urgentImportant} 
@@ -101,6 +136,7 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
         onAddTask={onAddTask}
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
+        onToggleComplete={onToggleComplete}
       />
       <QuadrantCard 
         title="Urgent & Not Important" 
@@ -109,6 +145,7 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
         onAddTask={onAddTask}
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
+        onToggleComplete={onToggleComplete}
       />
       <QuadrantCard 
         title="Not Urgent & Important" 
@@ -117,6 +154,7 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
         onAddTask={onAddTask}
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
+        onToggleComplete={onToggleComplete}
       />
       <QuadrantCard 
         title="Not Urgent & Not Important" 
@@ -125,13 +163,23 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
         onAddTask={onAddTask}
         onEditTask={onEditTask}
         onDeleteTask={onDeleteTask}
+        onToggleComplete={onToggleComplete}
       />
     </div>
   );
 };
 
 const TaskTracker = () => {
-  const [taskHierarchy, setTaskHierarchy] = useState([]);
+  const [taskHierarchy, setTaskHierarchy] = useState([
+    {
+      id: null,
+      title: 'Main Tasks',
+      tasks: []
+    }
+  ]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [addingTask, setAddingTask] = useState(false);
   const [newTaskQuadrant, setNewTaskQuadrant] = useState(null);
@@ -139,22 +187,85 @@ const TaskTracker = () => {
   const [editedTaskTitle, setEditedTaskTitle] = useState('');
   const [deletingTask, setDeletingTask] = useState(null);
 
+  const currentLevel = taskHierarchy[taskHierarchy.length - 1] || { tasks: [] };
+
   useEffect(() => {
-    const fetchTasks = async () => {
-      const tasks = await getTasks();
-      setTaskHierarchy(tasks);
-    };
-    fetchTasks();
+    console.log('Task hierarchy updated:', taskHierarchy);
+  }, [taskHierarchy]);
+
+  const fetchTasks = useCallback(async (parentId = null) => {
+    setLoading(true);
+    setError(null);
+    try {
+      let query = supabase
+        .from('tasks')
+        .select('*')
+        .order('created_at', { ascending: true });
+  
+      if (parentId === null) {
+        query = query.is('parent_id', null);
+      } else {
+        query = query.eq('parent_id', parentId);
+      }
+  
+      let { data, error } = await query;
+  
+      if (error) throw error;
+  
+      console.log('Fetched tasks:', data);
+  
+      setTaskHierarchy(prev => {
+        const updated = [...prev];
+        const currentLevelIndex = updated.length - 1;
+        updated[currentLevelIndex] = {
+          ...updated[currentLevelIndex],
+          tasks: data || []
+        };
+        console.log('Updated task hierarchy after fetch:', updated);
+        return updated;
+      });
+    } catch (error) {
+      console.error('Error fetching tasks:', error);
+      setError('Failed to fetch tasks. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const currentLevel = taskHierarchy[taskHierarchy.length - 1];
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
-  const navigateToTask = (task) => {
-    setTaskHierarchy(prev => [...prev, {
-      id: task.id,
-      title: task.title,
-      tasks: task.subtasks
-    }]);
+  const navigateToTask = async (task) => {
+    if (!task || !task.id) {
+      console.error('Invalid task:', task);
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .select('*')
+        .eq('parent_id', task.id)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+
+      console.log('Fetched subtasks:', data);
+
+      setTaskHierarchy(prev => [...prev, {
+        id: task.id,
+        title: task.title,
+        tasks: data || []
+      }]);
+    } catch (error) {
+      console.error('Error fetching subtasks:', error);
+      setError('Failed to open task matrix. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const navigateBack = () => {
@@ -164,7 +275,9 @@ const TaskTracker = () => {
   };
 
   const navigateToBreadcrumb = (index) => {
-    setTaskHierarchy(prev => prev.slice(0, index + 1));
+    if (index >= 0 && index < taskHierarchy.length) {
+      setTaskHierarchy(prev => prev.slice(0, index + 1));
+    }
   };
 
   const startAddingTask = (quadrant) => {
@@ -174,113 +287,322 @@ const TaskTracker = () => {
 
   const addNewTask = async () => {
     if (newTaskTitle.trim() === '') return;
-
+  
     const [urgent, important] = {
       'Urgent & Important': [true, true],
       'Urgent & Not Important': [true, false],
       'Not Urgent & Important': [false, true],
       'Not Urgent & Not Important': [false, false],
-    }[newTaskQuadrant];
-
-    const newTask = {
-      id: Date.now(),
-      title: newTaskTitle,
-      urgent,
-      important,
-      subtasks: []
-    };
-
-    const updatedTasks = await addTask(currentLevel.id, newTask);
-    setTaskHierarchy(updatedTasks);
-
-    setNewTaskTitle('');
-    setAddingTask(false);
-    setNewTaskQuadrant(null);
+    }[newTaskQuadrant] || [false, false];
+  
+    setLoading(true);
+    setError(null);
+    try {
+      const newTask = {
+        title: newTaskTitle,
+        urgent,
+        important,
+        parent_id: currentLevel.id === null ? null : currentLevel.id,
+        completed: false
+      };
+  
+      console.log('Adding new task:', newTask);
+  
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert(newTask)
+        .single();
+  
+      if (error) throw error;
+  
+      console.log('Added new task:', data);
+  
+      setTaskHierarchy(prev => {
+        const updated = [...prev];
+        const currentLevelIndex = updated.length - 1;
+        updated[currentLevelIndex] = {
+          ...updated[currentLevelIndex],
+          tasks: [...(updated[currentLevelIndex].tasks || []), data]
+        };
+        console.log('Updated task hierarchy:', updated);
+        return updated;
+      });
+  
+      setNewTaskTitle('');
+      setAddingTask(false);
+      setNewTaskQuadrant(null);
+  
+      // Fetch tasks again to ensure consistency
+      await fetchTasks(currentLevel.id === null ? null : currentLevel.id);
+    } catch (error) {
+      console.error('Error adding task:', error);
+      setError('Failed to add task. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const startEditingTask = (task) => {
+    if (!task || !task.id) {
+      console.error('Invalid task:', task);
+      return;
+    }
     setEditingTask(task);
     setEditedTaskTitle(task.title);
   };
 
   const saveEditedTask = async () => {
-    if (editedTaskTitle.trim() === '') return;
+    if (editedTaskTitle.trim() === '' || !editingTask || !editingTask.id) return;
 
-    const updatedTask = { ...editingTask, title: editedTaskTitle };
-    const updatedTasks = await updateTask(editingTask.id, updatedTask);
-    setTaskHierarchy(updatedTasks);
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ title: editedTaskTitle })
+        .eq('id', editingTask.id)
+        .single();
 
-    setEditingTask(null);
-    setEditedTaskTitle('');
+      if (error) throw error;
+
+      console.log('Updated task:', data);
+
+      setTaskHierarchy(prev => {
+        const updated = prev.map((level, index) => {
+          if (index === prev.length - 1) {
+            return {
+              ...level,
+              tasks: (level.tasks || []).map(task => 
+                task && task.id === editingTask.id ? { ...task, title: editedTaskTitle } : task
+              ).filter(Boolean)
+            };
+          }
+          return level;
+        });
+        return updated;
+      });
+
+      setEditingTask(null);
+      setEditedTaskTitle('');
+    } catch (error) {
+      console.error('Error updating task:', error);
+      setError('Failed to update task. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const startDeletingTask = (task) => {
+    if (!task || !task.id) {
+      console.error('Invalid task:', task);
+      return;
+    }
     setDeletingTask(task);
   };
 
   const confirmDeleteTask = async () => {
-    const updatedTasks = await deleteTask(deletingTask.id);
-    setTaskHierarchy(updatedTasks);
-    setDeletingTask(null);
+    if (!deletingTask || !deletingTask.id) return;
+
+    setLoading(true);
+    setError(null);
+    try {
+      const deleteTaskAndSubtasks = async (taskId) => {
+        console.log(`Starting deletion process for task ID: ${taskId}`);
+
+        const { data: subtasks, error: fetchError } = await supabase
+          .from('tasks')
+          .select('id')
+          .eq('parent_id', taskId);
+
+        if (fetchError) throw fetchError;
+
+        console.log(`Found ${subtasks.length} subtasks for task ID: ${taskId}`);
+
+        for (let subtask of subtasks) {
+          await deleteTaskAndSubtasks(subtask.id);
+        }
+
+        const { error: deleteError } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('id', taskId);
+
+        if (deleteError) throw deleteError;
+
+        console.log(`Successfully deleted task ID: ${taskId}`);
+      };
+
+      await deleteTaskAndSubtasks(deletingTask.id);
+
+      setTaskHierarchy(prev => {
+        const updated = [...prev];
+        const currentLevelIndex = updated.length - 1;
+        updated[currentLevelIndex] = {
+          ...updated[currentLevelIndex],
+          tasks: (updated[currentLevelIndex].tasks || []).filter(task => task.id !== deletingTask.id)
+        };
+        return updated;
+      });
+
+      setDeletingTask(null);
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      setError('Failed to delete task. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (!currentLevel) return <div>Loading...</div>;
+  const toggleTaskCompletion = async (task) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ completed: !task.completed })
+        .eq('id', task.id)
+        .single();
+
+      if (error) throw error;
+
+      console.log('Toggled task completion:', data);
+
+      setTaskHierarchy(prev => {
+        const updated = [...prev];
+        const currentLevelIndex = updated.length - 1;
+        updated[currentLevelIndex] = {
+          ...updated[currentLevelIndex],
+          tasks: updated[currentLevelIndex].tasks.map(t => 
+            t.id === task.id ? { ...t, completed: !t.completed } : t
+          )
+        };
+        return updated;
+      });
+
+    } catch (error) {
+      console.error('Error toggling task completion:', error);
+      setError('Failed to update task. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="flex items-center justify-center h-screen">
+      <motion.div
+        animate={{
+          scale: [1, 1.2, 1],
+          rotate: [0, 180, 360],
+        }}
+        transition={{
+          duration: 2,
+          ease: "easeInOut",
+          times: [0, 0.5, 1],
+          repeat: Infinity,
+        }}
+        className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"
+      />
+    </div>
+  );
+
+  if (error) return (
+    <motion.div
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded"
+    >
+      <p className="font-bold">Error</p>
+      <p>{error}</p>
+    </motion.div>
+  );
 
   return (
-    <div className="p-4">
+    <div className="p-8 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
       <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} />
-      <div className="flex items-center mb-4">
+      <div className="flex items-center mb-8">
         {taskHierarchy.length > 1 && (
-          <Button variant="ghost" onClick={navigateBack} className="mr-4">
-            <ChevronLeft size={16} className="mr-2" />
-            Back
-          </Button>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+          >
+            <Button variant="outline" onClick={navigateBack} className="mr-4 bg-white hover:bg-blue-50 transition-colors">
+              <ChevronLeft size={16} className="mr-2" />
+              Back
+            </Button>
+          </motion.div>
         )}
-        <h1 className="text-2xl font-bold">{currentLevel.title}</h1>
+        <motion.h1 
+          className="text-3xl font-bold text-gray-800"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {currentLevel.title}
+        </motion.h1>
       </div>
-      {addingTask && (
-        <div className="mb-4 flex items-center">
-          <Input 
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder="Enter new task title"
-            className="mr-2"
-          />
-          <Button onClick={addNewTask}>Add Task</Button>
-          <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">Cancel</Button>
-        </div>
-      )}
-      {editingTask && (
-        <div className="mb-4 flex items-center">
-          <Input 
-            value={editedTaskTitle}
-            onChange={(e) => setEditedTaskTitle(e.target.value)}
-            placeholder="Edit task title"
-            className="mr-2"
-          />
-          <Button onClick={saveEditedTask}>Save</Button>
-          <Button variant="ghost" onClick={() => setEditingTask(null)} className="ml-2">Cancel</Button>
-        </div>
-      )}
-      <EisenhowerMatrix 
-        tasks={currentLevel.tasks} 
-        onOpenMatrix={navigateToTask}
-        onAddTask={startAddingTask}
-        onEditTask={startEditingTask}
-        onDeleteTask={startDeletingTask}
-      />
+      <AnimatePresence>
+        {addingTask && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mb-6 flex items-center bg-white p-4 rounded-lg shadow-md"
+          >
+            <Input 
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              placeholder="Enter new task title"
+              className="mr-2 flex-grow"
+            />
+            <Button onClick={addNewTask} className="bg-blue-500 hover:bg-blue-600 text-white transition-colors">Add Task</Button>
+            <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">Cancel</Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {editingTask && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mb-6 flex items-center bg-white p-4 rounded-lg shadow-md"
+          >
+            <Input 
+              value={editedTaskTitle}
+              onChange={(e) => setEditedTaskTitle(e.target.value)}
+              placeholder="Edit task title"
+              className="mr-2 flex-grow"
+            />
+            <Button onClick={saveEditedTask} className="bg-green-500 hover:bg-green-600 text-white transition-colors">Save</Button>
+            <Button variant="ghost" onClick={() => setEditingTask(null)} className="ml-2">Cancel</Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+      >
+        <EisenhowerMatrix 
+          tasks={currentLevel.tasks} 
+          onOpenMatrix={navigateToTask}
+          onAddTask={startAddingTask}
+          onEditTask={startEditingTask}
+          onDeleteTask={startDeletingTask}
+          onToggleComplete={toggleTaskCompletion}
+        />
+      </motion.div>
       <AlertDialog open={deletingTask !== null} onOpenChange={() => setDeletingTask(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure you want to delete this task?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the task
-              "{deletingTask?.title}" and all its subtasks.
+              "{deletingTask?.title}" and ALL its subtasks at any level.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteTask}>Delete</AlertDialogAction>
+            <AlertDialogAction onClick={confirmDeleteTask} className="bg-red-500 hover:bg-red-600 text-white transition-colors">Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
