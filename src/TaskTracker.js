@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+import { ErrorBoundary } from 'react-error-boundary';
 import { 
   PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, 
   CheckCircle, Circle, ChevronDown, X, Menu, Sun, Moon,
   Clock, Target, Zap, Coffee, Calendar, BarChart, Settings,
-  ArrowRight, Gift
+  ArrowRight, Gift, Home
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
@@ -88,13 +89,13 @@ const Breadcrumb = ({ hierarchy, onNavigate, theme }) => (
   <motion.div 
     initial={{ opacity: 0, y: -20 }}
     animate={{ opacity: 1, y: 0 }}
-    className={`flex items-center mb-4 text-sm ${colorPalette[theme].text} overflow-x-auto whitespace-nowrap`}
+    className={`flex items-center mb-4 text-sm ${colorPalette[theme].text} overflow-x-auto whitespace-nowrap pb-2`}
   >
     {hierarchy.map((level, index) => (
       <React.Fragment key={level.id || index}>
         <Button 
           variant="link" 
-          className={`p-0 h-auto font-normal hover:text-indigo-500 transition-colors ${colorPalette[theme].text}`}
+          className={`p-0 h-auto font-normal hover:text-indigo-500 transition-colors ${colorPalette[theme].text} truncate max-w-[100px] sm:max-w-[150px] md:max-w-[200px]`}
           onClick={() => onNavigate(index)}
         >
           {level.title}
@@ -120,7 +121,7 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, 
       initial={{ opacity: 0, y: 20 }}
       animate={controls}
       exit={{ opacity: 0, y: -20 }}
-      className={`mb-3 flex items-center p-4 rounded-lg ${colorPalette[theme].card} shadow-lg hover:shadow-xl transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
+      className={`mb-3 flex items-center p-4 rounded-lg ${colorPalette[theme].card} shadow-md hover:shadow-xl transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
     >
       <Tooltip content={task.completed ? "Mark as incomplete" : "Mark as complete"}>
         <Button
@@ -136,58 +137,60 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, 
           )}
         </Button>
       </Tooltip>
-      <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>{task.title}</span>
-      <Tooltip content="Open subtasks">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className={`ml-2 text-indigo-500 ${colorPalette[theme].hover} transition-colors`}
-          onClick={() => onOpenMatrix(task)}
-        >
-          <ChevronRight size={16} />
-        </Button>
-      </Tooltip>
-      <Tooltip content="Edit task">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className={`ml-2 text-yellow-500 ${colorPalette[theme].hover} transition-colors`}
-          onClick={() => onEditTask(task)}
-        >
-          <Edit size={16} />
-        </Button>
-      </Tooltip>
-      <Tooltip content="Delete task">
-        <Button 
-          variant="ghost" 
-          size="sm"
-          className={`ml-2 text-red-500 ${colorPalette[theme].hover} transition-colors`}
-          onClick={() => onDeleteTask(task)}
-        >
-          <Trash2 size={16} />
-        </Button>
-      </Tooltip>
+      <span className={`flex-grow truncate max-w-[150px] sm:max-w-[200px] md:max-w-[250px] ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
+        {task.title}
+      </span>
+      <div className="flex items-center space-x-2">
+        <Tooltip content="Open subtasks">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className={`text-indigo-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+            onClick={() => onOpenMatrix(task)}
+          >
+            <ChevronRight size={16} />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Edit task">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className={`text-yellow-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+            onClick={() => onEditTask(task)}
+          >
+            <Edit size={16} />
+          </Button>
+        </Tooltip>
+        <Tooltip content="Delete task">
+          <Button 
+            variant="ghost" 
+            size="sm"
+            className={`text-red-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+            onClick={() => onDeleteTask(task)}
+          >
+            <Trash2 size={16} />
+          </Button>
+        </Tooltip>
+      </div>
     </motion.div>
   );
 };
 
-const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, theme }) => {
-  const quadrantColor = {
-    'Urgent & Important': colorPalette[theme].quadrants.urgentImportant,
-    'Urgent & Not Important': colorPalette[theme].quadrants.urgentNotImportant,
-    'Not Urgent & Important': colorPalette[theme].quadrants.notUrgentImportant,
-    'Not Urgent & Not Important': colorPalette[theme].quadrants.notUrgentNotImportant,
-  }[title] || colorPalette[theme].card;
-
+const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, theme, color }) => {
   return (
-    <Card className={`h-full overflow-hidden shadow-lg ${quadrantColor}`}>
-      <CardHeader className={`font-semibold flex justify-between items-center p-4`}>
+    <Card className={`h-full overflow-hidden shadow-lg bg-gradient-to-br ${color} ${theme === 'dark' ? 'bg-opacity-20' : ''}`}>
+      <CardHeader className={`font-semibold flex justify-between items-center p-4 ${colorPalette[theme].text}`}>
         <div className="flex items-center">
           {QuadrantIcons[title]}
-          <span className={`text-lg ${colorPalette[theme].text}`}>{title}</span>
+          <span className="text-lg font-bold">{title}</span>
         </div>
         <Tooltip content="Add new task">
-          <Button variant="outline" size="sm" onClick={() => onAddTask(title)} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors`}>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => onAddTask(title)} 
+            className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors hover:scale-105`}
+          >
             <PlusCircle size={16} className="mr-2" />
             Add Task
           </Button>
@@ -212,6 +215,7 @@ const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDel
   );
 };
 
+
 const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, theme }) => {
   const filterTasks = (urgent, important) => 
     (tasks || []).filter(t => 
@@ -220,14 +224,14 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
     );
 
   const quadrants = [
-    { title: 'Urgent & Important', tasks: filterTasks(true, true) },
-    { title: 'Urgent & Not Important', tasks: filterTasks(true, false) },
-    { title: 'Not Urgent & Important', tasks: filterTasks(false, true) },
-    { title: 'Not Urgent & Not Important', tasks: filterTasks(false, false) },
+    { title: 'Urgent & Important', tasks: filterTasks(true, true), color: 'from-red-200 to-red-300' },
+    { title: 'Urgent & Not Important', tasks: filterTasks(true, false), color: 'from-yellow-200 to-yellow-300' },
+    { title: 'Not Urgent & Important', tasks: filterTasks(false, true), color: 'from-green-200 to-green-300' },
+    { title: 'Not Urgent & Not Important', tasks: filterTasks(false, false), color: 'from-blue-200 to-blue-300' },
   ];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {quadrants.map(quadrant => (
         <QuadrantCard
           key={quadrant.title}
@@ -239,6 +243,7 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
           onDeleteTask={onDeleteTask}
           onToggleComplete={onToggleComplete}
           theme={theme}
+          color={quadrant.color}
         />
       ))}
     </div>
@@ -546,7 +551,7 @@ const ProductivityTips = ({ theme }) => {
   );
 };
 
-const TaskTracker = () => {
+const TaskTracker = ({ onTaskComplete, onError }) => {
   const [theme, setTheme] = useColorTheme();
   const [taskHierarchy, setTaskHierarchy] = useState([
     {
@@ -574,23 +579,17 @@ const TaskTracker = () => {
   const menuRef = useRef(null);
 
   useEffect(() => {
+    console.log('TaskTracker: Initial render');
+    fetchTasks();
+    fetchAllTasks();
+  }, []);
+
+  useEffect(() => {
     console.log('Task hierarchy updated:', taskHierarchy);
   }, [taskHierarchy]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-
   const fetchTasks = useCallback(async (parentId = null) => {
+    console.log('Fetching tasks...');
     setLoading(true);
     setError(null);
     try {
@@ -624,12 +623,14 @@ const TaskTracker = () => {
     } catch (error) {
       console.error('Error fetching tasks:', error);
       setError('Failed to fetch tasks. Please try again.');
+      onError(error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onError]);
 
   const fetchAllTasks = useCallback(async () => {
+    console.log('Fetching all tasks...');
     setLoading(true);
     setError(null);
     try {
@@ -639,6 +640,8 @@ const TaskTracker = () => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
+
+      console.log('Fetched all tasks:', data);
 
       const taskMap = new Map();
       data.forEach(task => taskMap.set(task.id, { ...task, subtasks: [] }));
@@ -654,10 +657,11 @@ const TaskTracker = () => {
     } catch (error) {
       console.error('Error fetching all tasks:', error);
       setError('Failed to fetch all tasks. Please try again.');
+      onError(error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [onError]);
 
   useEffect(() => {
     fetchTasks();
@@ -696,6 +700,16 @@ const TaskTracker = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const navigateHome = () => {
+    setTaskHierarchy([{
+      id: null,
+      title: 'Main Tasks',
+      tasks: allTasks.filter(task => !task.parent_id)
+    }]);
+    setShowOverview(false);
+    setShowAnalytics(false);
   };
 
   const navigateBack = () => {
@@ -895,6 +909,18 @@ const TaskTracker = () => {
     }
   };
 
+  const handleSearchSelect = (task) => {
+    // Navigate to the task's parent if it has one, otherwise to the task itself
+    if (task.parent_id) {
+      const parentTask = allTasks.find(t => t.id === task.parent_id);
+      if (parentTask) {
+        navigateToTask(parentTask);
+      }
+    } else {
+      navigateToTask(task);
+    }
+  };
+
   const toggleTaskCompletion = async (task) => {
     setLoading(true);
     setError(null);
@@ -992,103 +1018,154 @@ const TaskTracker = () => {
     </div>
   );
 
+  const LoadingSpinner = () => (
+    <div className={`flex items-center justify-center h-screen ${colorPalette[theme].background}`}>
+      <motion.div
+        animate={{
+          scale: [1, 1.2, 1],
+          rotate: [0, 180, 360],
+        }}
+        transition={{
+          duration: 2,
+          ease: "easeInOut",
+          times: [0, 0.5, 1],
+          repeat: Infinity,
+        }}
+        className={`w-16 h-16 border-4 ${colorPalette[theme].accent} border-t-transparent rounded-full`}
+      />
+      <motion.p
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.5 }}
+        className={`ml-4 text-lg font-semibold ${colorPalette[theme].text}`}
+      >
+        Loading your tasks...
+      </motion.p>
+    </div>
+  );
+
+  if (loading) {
+    console.log('TaskTracker: Rendering loading spinner');
+    return <LoadingSpinner theme={theme} />;
+  }
+
+  if (error) {
+    console.log('TaskTracker: Rendering error message', error);
+    return <ErrorMessage error={error} theme={theme} />;
+  }
+
+  console.log('TaskTracker: Rendering main content');
+
   return (
     <TooltipProvider>
-      <div className={`p-4 md:p-8 ${colorPalette[theme].background} min-h-screen`}>
-        {error && (
-          <motion.div
+    <div className={`p-4 md:p-8 ${colorPalette[theme].background} min-h-screen`}>
+    <TaskSearch tasks={allTasks} onSelectTask={handleSearchSelect} theme={theme} />
+      {error && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`${colorPalette[theme].card} border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-md`}
+        >
+          <p className="font-bold">Error</p>
+          <p>{error}</p>
+        </motion.div>
+      )}
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-4">
+          {taskHierarchy.length > 1 && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+            >
+              <Button variant="outline" onClick={navigateBack} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>
+                <ChevronLeft size={16} className="mr-2" />
+                Back
+              </Button>
+            </motion.div>
+          )}
+          <motion.h1 
+            className={`text-2xl md:text-3xl font-bold ${colorPalette[theme].text} truncate max-w-[200px] sm:max-w-[300px] md:max-w-[400px]`}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
-            className={`${colorPalette[theme].card} border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-md`}
           >
-            <p className="font-bold">Error</p>
-            <p>{error}</p>
-          </motion.div>
-        )}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            {taskHierarchy.length > 1 && (
-              <motion.div
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
+            {currentLevel.title}
+          </motion.h1>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+                onClick={navigateHome}
               >
-                <Button variant="outline" onClick={navigateBack} className={`mr-4 ${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>
-                  <ChevronLeft size={16} className="mr-2" />
-                  Back
-                </Button>
-              </motion.div>
-            )}
-            <motion.h1 
-              className={`text-2xl md:text-3xl font-bold ${colorPalette[theme].text} truncate`}
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              {currentLevel.title}
-            </motion.h1>
-          </div>
-          <div className="flex items-center space-x-2">
+                <Home size={16} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Go Home</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+              >
+                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+            </TooltipContent>
+          </Tooltip>
+          <div className="relative" ref={menuRef}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="outline"
                   className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
-                  onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                  onClick={() => setMenuOpen(!menuOpen)}
                 >
-                  {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                  <Menu size={16} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-              </TooltipContent>
+              <TooltipContent>Menu</TooltipContent>
             </Tooltip>
-            <div className="relative" ref={menuRef}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
-                    onClick={() => setMenuOpen(!menuOpen)}
-                  >
-                    <Menu size={16} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Menu</TooltipContent>
-              </Tooltip>
-              {menuOpen && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className={`absolute right-0 mt-2 w-48 ${colorPalette[theme].card} rounded-md shadow-lg z-10`}
+            {menuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className={`absolute right-0 mt-2 w-48 ${colorPalette[theme].card} rounded-md shadow-lg z-10`}
+              >
+                <Button
+                  variant="ghost"
+                  className={`w-full text-left ${colorPalette[theme].text}`}
+                  onClick={() => {
+                    setShowOverview(!showOverview);
+                    setShowAnalytics(false);
+                    setMenuOpen(false);
+                  }}
                 >
-                  <Button
-                    variant="ghost"
-                    className={`w-full text-left ${colorPalette[theme].text}`}
-                    onClick={() => {
-                      setShowOverview(!showOverview);
-                      setShowAnalytics(false);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    {showOverview ? 'Hide Overview' : 'Show Overview'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className={`w-full text-left ${colorPalette[theme].text}`}
-                    onClick={() => {
-                      setShowAnalytics(!showAnalytics);
-                      setShowOverview(false);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
-                  </Button>
-                </motion.div>
-              )}
-            </div>
+                  {showOverview ? 'Hide Overview' : 'Show Overview'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  className={`w-full text-left ${colorPalette[theme].text}`}
+                  onClick={() => {
+                    setShowAnalytics(!showAnalytics);
+                    setShowOverview(false);
+                    setMenuOpen(false);
+                  }}
+                >
+                  {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+                </Button>
+              </motion.div>
+            )}
           </div>
         </div>
-        <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} theme={theme} />
+      </div>
+      <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} theme={theme} />
         <AnimatePresence>
           {addingTask && (
             <motion.div 
@@ -1250,7 +1327,7 @@ const LoadingSpinner = ({ theme }) => (
     </motion.p>
   </div>
 );
-
+// if (loading) return <LoadingSpinner />;
 // Enhanced error component
 const ErrorMessage = ({ error, theme }) => (
   <motion.div
@@ -1269,6 +1346,62 @@ const ErrorMessage = ({ error, theme }) => (
   </motion.div>
 );
 
+const TaskSearch = ({ tasks, onSelectTask, theme }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+
+  useEffect(() => {
+    if (searchTerm.trim() === '') {
+      setSearchResults([]);
+      return;
+    }
+
+    const results = tasks.filter(task => 
+      task.title.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setSearchResults(results);
+  }, [searchTerm, tasks]);
+
+  return (
+    <div className={`mb-6 ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}>
+      <Input
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Search tasks..."
+        className={`mb-4 ${colorPalette[theme].text}`}
+      />
+      {searchResults.length > 0 && (
+        <ul className={`max-h-60 overflow-y-auto ${colorPalette[theme].text}`}>
+          {searchResults.map(task => (
+            <li 
+              key={task.id}
+              className={`cursor-pointer p-2 hover:bg-gray-100 rounded ${theme === 'dark' ? 'hover:bg-gray-700' : ''}`}
+              onClick={() => onSelectTask(task)}
+            >
+              {task.title}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
+
+
+// Main App component
+const ErrorFallback = ({ error, resetErrorBoundary }) => (
+  <div role="alert" className="p-4 bg-red-100 border border-red-400 text-red-700 rounded">
+    <h2 className="text-lg font-semibold mb-2">Something went wrong:</h2>
+    <pre className="text-sm overflow-auto mb-4">{error.message}</pre>
+    <button
+      onClick={resetErrorBoundary}
+      className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+    >
+      Try again
+    </button>
+  </div>
+);
+
 // Main App component
 const App = () => {
   const [theme] = useColorTheme();
@@ -1277,26 +1410,42 @@ const App = () => {
   const [showCelebration, setShowCelebration] = useState(false);
 
   useEffect(() => {
-    // Simulate initial loading
-    setTimeout(() => {
+    console.log('App: Initial render');
+    const timer = setTimeout(() => {
+      console.log('App: Initial loading complete');
       setLoading(false);
     }, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
 
-  if (loading) return <LoadingSpinner theme={theme} />;
-  if (error) return <ErrorMessage error={error} theme={theme} />;
+  const handleError = (error) => {
+    console.error('App: Error occurred', error);
+    setError(error.message || 'An unexpected error occurred');
+  };
 
+  if (loading) {
+    console.log('App: Rendering loading spinner');
+    return <LoadingSpinner theme={theme} />;
+  }
+
+  if (error) {
+    console.log('App: Rendering error message', error);
+    return <ErrorMessage error={error} theme={theme} />;
+  }
+
+  console.log('App: Rendering TaskTracker');
   return (
-    <>
+    <ErrorBoundary FallbackComponent={ErrorFallback} onReset={() => window.location.reload()}>
       <TaskTracker 
         onTaskComplete={() => setShowCelebration(true)}
-        onError={setError}
+        onError={handleError}
       />
       <TaskCompletionCelebration 
         show={showCelebration} 
         onComplete={() => setShowCelebration(false)}
       />
-    </>
+    </ErrorBoundary>
   );
 };
 
