@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, CheckCircle, Circle, ChevronDown, X, Menu } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useAnimation } from 'framer-motion';
+import { 
+  PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, 
+  CheckCircle, Circle, ChevronDown, X, Menu, Sun, Moon,
+  Clock, Target, Zap, Coffee
+} from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
@@ -16,17 +20,77 @@ import {
 } from "./components/ui/alert-dialog";
 import { supabase } from './supabaseClient';
 
-const Breadcrumb = ({ hierarchy, onNavigate }) => (
+const useColorTheme = () => {
+  const [theme, setTheme] = useState('light');
+  
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('color-theme');
+    if (savedTheme) {
+      setTheme(savedTheme);
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setTheme('dark');
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('color-theme', theme);
+  }, [theme]);
+
+  return [theme, setTheme];
+};
+
+const colorPalette = {
+  light: {
+    background: 'bg-gradient-to-br from-blue-50 to-indigo-100',
+    card: 'bg-white',
+    text: 'text-gray-800',
+    accent: 'bg-gradient-to-r from-blue-400 to-indigo-500',
+    button: 'bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700',
+    buttonText: 'text-white',
+    hover: 'hover:bg-indigo-50',
+    quadrants: {
+      urgentImportant: 'bg-gradient-to-br from-red-100 to-pink-100',
+      urgentNotImportant: 'bg-gradient-to-br from-yellow-100 to-orange-100',
+      notUrgentImportant: 'bg-gradient-to-br from-green-100 to-emerald-100',
+      notUrgentNotImportant: 'bg-gradient-to-br from-blue-100 to-indigo-100'
+    }
+  },
+  dark: {
+    background: 'bg-gradient-to-br from-gray-900 to-indigo-900',
+    card: 'bg-gray-800',
+    text: 'text-gray-100',
+    accent: 'bg-gradient-to-r from-blue-600 to-indigo-700',
+    button: 'bg-gradient-to-r from-indigo-600 to-purple-700 hover:from-indigo-700 hover:to-purple-800',
+    buttonText: 'text-white',
+    hover: 'hover:bg-gray-700',
+    quadrants: {
+      urgentImportant: 'bg-gradient-to-br from-red-900 to-pink-900',
+      urgentNotImportant: 'bg-gradient-to-br from-yellow-900 to-orange-900',
+      notUrgentImportant: 'bg-gradient-to-br from-green-900 to-emerald-900',
+      notUrgentNotImportant: 'bg-gradient-to-br from-blue-900 to-indigo-900'
+    }
+  }
+};
+
+const QuadrantIcons = {
+  'Urgent & Important': <Zap className="w-6 h-6 mr-2" />,
+  'Urgent & Not Important': <Clock className="w-6 h-6 mr-2" />,
+  'Not Urgent & Important': <Target className="w-6 h-6 mr-2" />,
+  'Not Urgent & Not Important': <Coffee className="w-6 h-6 mr-2" />
+};
+
+const Breadcrumb = ({ hierarchy, onNavigate, theme }) => (
   <motion.div 
     initial={{ opacity: 0, y: -20 }}
     animate={{ opacity: 1, y: 0 }}
-    className="flex items-center mb-4 text-sm text-gray-600 overflow-x-auto whitespace-nowrap"
+    className={`flex items-center mb-4 text-sm ${colorPalette[theme].text} overflow-x-auto whitespace-nowrap`}
   >
     {hierarchy.map((level, index) => (
       <React.Fragment key={level.id || index}>
         <Button 
           variant="link" 
-          className="p-0 h-auto font-normal hover:text-blue-600 transition-colors"
+          className={`p-0 h-auto font-normal hover:text-indigo-500 transition-colors ${colorPalette[theme].text}`}
           onClick={() => onNavigate(index)}
         >
           {level.title}
@@ -37,16 +101,22 @@ const Breadcrumb = ({ hierarchy, onNavigate }) => (
   </motion.div>
 );
 
-const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }) => {
+const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, theme }) => {
+  const controls = useAnimation();
+
+  useEffect(() => {
+    controls.start({ opacity: 1, y: 0 });
+  }, [controls]);
+
   if (!task || !task.id) return null;
   
   return (
     <motion.div 
       layout
       initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      animate={controls}
       exit={{ opacity: 0, y: -20 }}
-      className={`mb-3 flex items-center p-4 rounded-lg bg-white shadow-sm hover:shadow-md transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
+      className={`mb-3 flex items-center p-4 rounded-lg ${colorPalette[theme].card} shadow-lg hover:shadow-xl transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
     >
       <Button
         variant="ghost"
@@ -60,11 +130,11 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }
           <Circle size={20} className="text-gray-300" />
         )}
       </Button>
-      <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : ''}`}>{task.title}</span>
+      <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>{task.title}</span>
       <Button 
         variant="ghost" 
         size="sm"
-        className="ml-2 text-blue-600 hover:text-blue-800 transition-colors"
+        className={`ml-2 text-indigo-500 ${colorPalette[theme].hover} transition-colors`}
         onClick={() => onOpenMatrix(task)}
       >
         <ChevronRight size={16} />
@@ -72,7 +142,7 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }
       <Button 
         variant="ghost" 
         size="sm"
-        className="ml-2 text-gray-600 hover:text-gray-800 transition-colors"
+        className={`ml-2 text-yellow-500 ${colorPalette[theme].hover} transition-colors`}
         onClick={() => onEditTask(task)}
       >
         <Edit size={16} />
@@ -80,7 +150,7 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }
       <Button 
         variant="ghost" 
         size="sm"
-        className="ml-2 text-red-600 hover:text-red-800 transition-colors"
+        className={`ml-2 text-red-500 ${colorPalette[theme].hover} transition-colors`}
         onClick={() => onDeleteTask(task)}
       >
         <Trash2 size={16} />
@@ -89,35 +159,46 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete }
   );
 };
 
-const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete }) => (
-  <Card className="h-full overflow-hidden shadow-lg">
-    <CardHeader className="font-semibold flex justify-between items-center bg-gradient-to-r from-blue-50 to-indigo-50 p-4">
-      <span className="text-lg text-gray-800">{title}</span>
-      <Button variant="outline" size="sm" onClick={() => onAddTask(title)} className="bg-white hover:bg-blue-50 transition-colors">
-        <PlusCircle size={16} className="mr-2" />
-        Add Task
-      </Button>
-    </CardHeader>
-    <CardContent className="p-4 max-h-[calc(100vh-200px)] overflow-y-auto">
-      <AnimatePresence>
-        {(tasks || []).filter(task => task && task.id).map(task => (
-          <Task 
-            key={task.id} 
-            task={task} 
-            onOpenMatrix={onOpenMatrix}
-            onEditTask={onEditTask}
-            onDeleteTask={onDeleteTask}
-            onToggleComplete={onToggleComplete}
-          />
-        ))}
-      </AnimatePresence>
-    </CardContent>
-  </Card>
-);
+const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, theme }) => {
+  const quadrantColor = {
+    'Urgent & Important': colorPalette[theme].quadrants.urgentImportant,
+    'Urgent & Not Important': colorPalette[theme].quadrants.urgentNotImportant,
+    'Not Urgent & Important': colorPalette[theme].quadrants.notUrgentImportant,
+    'Not Urgent & Not Important': colorPalette[theme].quadrants.notUrgentNotImportant,
+  }[title] || colorPalette[theme].card;
 
-const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete }) => {
-  const [activeQuadrant, setActiveQuadrant] = useState('Urgent & Important');
-  
+  return (
+    <Card className={`h-full overflow-hidden shadow-lg ${quadrantColor}`}>
+      <CardHeader className={`font-semibold flex justify-between items-center p-4`}>
+        <div className="flex items-center">
+          {QuadrantIcons[title]}
+          <span className={`text-lg ${colorPalette[theme].text}`}>{title}</span>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => onAddTask(title)} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors`}>
+          <PlusCircle size={16} className="mr-2" />
+          Add Task
+        </Button>
+      </CardHeader>
+      <CardContent className="p-4 max-h-[calc(50vh-100px)] overflow-y-auto">
+        <AnimatePresence>
+          {(tasks || []).filter(task => task && task.id).map(task => (
+            <Task 
+              key={task.id} 
+              task={task} 
+              onOpenMatrix={onOpenMatrix}
+              onEditTask={onEditTask}
+              onDeleteTask={onDeleteTask}
+              onToggleComplete={onToggleComplete}
+              theme={theme}
+            />
+          ))}
+        </AnimatePresence>
+      </CardContent>
+    </Card>
+  );
+};
+
+const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, theme }) => {
   const filterTasks = (urgent, important) => 
     (tasks || []).filter(t => 
       t?.urgent === urgent && 
@@ -132,44 +213,31 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
   ];
 
   return (
-    <div className="flex flex-col space-y-4">
-      <div className="flex overflow-x-auto pb-2">
-        {quadrants.map(quadrant => (
-          <Button
-            key={quadrant.title}
-            variant={activeQuadrant === quadrant.title ? 'default' : 'outline'}
-            className="mr-2 whitespace-nowrap"
-            onClick={() => setActiveQuadrant(quadrant.title)}
-          >
-            {quadrant.title}
-          </Button>
-        ))}
-      </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {quadrants.map(quadrant => (
-        activeQuadrant === quadrant.title && (
-          <QuadrantCard
-            key={quadrant.title}
-            title={quadrant.title}
-            tasks={quadrant.tasks}
-            onOpenMatrix={onOpenMatrix}
-            onAddTask={onAddTask}
-            onEditTask={onEditTask}
-            onDeleteTask={onDeleteTask}
-            onToggleComplete={onToggleComplete}
-          />
-        )
+        <QuadrantCard
+          key={quadrant.title}
+          title={quadrant.title}
+          tasks={quadrant.tasks}
+          onOpenMatrix={onOpenMatrix}
+          onAddTask={onAddTask}
+          onEditTask={onEditTask}
+          onDeleteTask={onDeleteTask}
+          onToggleComplete={onToggleComplete}
+          theme={theme}
+        />
       ))}
     </div>
   );
 };
 
-const OverviewTask = ({ task, level, onNavigate }) => {
+const OverviewTask = ({ task, level, onNavigate, theme }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
     <div className={`ml-${level * 4}`}>
       <div 
-        className="flex items-center py-2 px-4 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+        className={`flex items-center py-2 px-4 ${colorPalette[theme].hover} rounded transition-colors cursor-pointer`}
         onClick={() => onNavigate(task)}
       >
         {task.subtasks && task.subtasks.length > 0 && (
@@ -188,7 +256,7 @@ const OverviewTask = ({ task, level, onNavigate }) => {
             />
           </Button>
         )}
-        <span className={`${task.completed ? 'line-through text-gray-500' : ''}`}>
+        <span className={`${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
           {task.title}
         </span>
       </div>
@@ -200,6 +268,7 @@ const OverviewTask = ({ task, level, onNavigate }) => {
               task={subtask}
               level={level + 1}
               onNavigate={onNavigate}
+              theme={theme}
             />
           ))}
         </div>
@@ -208,11 +277,11 @@ const OverviewTask = ({ task, level, onNavigate }) => {
   );
 };
 
-const Overview = ({ tasks, onNavigate }) => {
+const Overview = ({ tasks, onNavigate, theme }) => {
   return (
-    <Card className="mt-6 shadow-lg">
+    <Card className={`mt-6 shadow-lg ${colorPalette[theme].card}`}>
       <CardHeader>
-        <h2 className="text-2xl font-bold text-gray-800">Task Overview</h2>
+        <h2 className={`text-2xl font-bold ${colorPalette[theme].text}`}>Task Overview</h2>
       </CardHeader>
       <CardContent>
         {tasks.map(task => (
@@ -221,6 +290,7 @@ const Overview = ({ tasks, onNavigate }) => {
             task={task}
             level={0}
             onNavigate={onNavigate}
+            theme={theme}
           />
         ))}
       </CardContent>
@@ -229,6 +299,7 @@ const Overview = ({ tasks, onNavigate }) => {
 };
 
 const TaskTracker = () => {
+  const [theme, setTheme] = useColorTheme();
   const [taskHierarchy, setTaskHierarchy] = useState([
     {
       id: null,
@@ -414,6 +485,7 @@ const TaskTracker = () => {
         parent_id: currentLevel.id === null ? null : currentLevel.id,
         completed: false
       };
+  
       console.log('Adding new task:', newTask);
   
       const { data, error } = await supabase
@@ -600,7 +672,7 @@ const TaskTracker = () => {
   };
 
   if (loading) return (
-    <div className="flex items-center justify-center h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
+    <div className={`flex items-center justify-center h-screen ${colorPalette[theme].background}`}>
       <motion.div
         animate={{
           scale: [1, 1.2, 1],
@@ -612,7 +684,7 @@ const TaskTracker = () => {
           times: [0, 0.5, 1],
           repeat: Infinity,
         }}
-        className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full"
+        className={`w-16 h-16 border-4 ${colorPalette[theme].accent} border-t-transparent rounded-full`}
       />
     </div>
   );
@@ -621,7 +693,7 @@ const TaskTracker = () => {
     <motion.div
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-md"
+      className={`${colorPalette[theme].card} border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-md`}
     >
       <p className="font-bold">Error</p>
       <p>{error}</p>
@@ -629,7 +701,7 @@ const TaskTracker = () => {
   );
 
   return (
-    <div className="p-4 md:p-8 bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <div className={`p-4 md:p-8 ${colorPalette[theme].background} min-h-screen`}>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center">
           {taskHierarchy.length > 1 && (
@@ -637,66 +709,74 @@ const TaskTracker = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
             >
-              <Button variant="outline" onClick={navigateBack} className="mr-4 bg-white hover:bg-blue-50 transition-colors shadow-md">
+              <Button variant="outline" onClick={navigateBack} className={`mr-4 ${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>
                 <ChevronLeft size={16} className="mr-2" />
                 Back
               </Button>
             </motion.div>
           )}
           <motion.h1 
-            className="text-2xl md:text-3xl font-bold text-gray-800 truncate"
+            className={`text-2xl md:text-3xl font-bold ${colorPalette[theme].text} truncate`}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
           >
             {currentLevel.title}
           </motion.h1>
         </div>
-        <div className="relative" ref={menuRef}>
+        <div className="flex items-center space-x-2">
           <Button
             variant="outline"
-            className="bg-white hover:bg-blue-50 transition-colors shadow-md"
-            onClick={() => setMenuOpen(!menuOpen)}
+            className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+            onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
           >
-            <Menu size={16} />
+            {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
           </Button>
-          {menuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10"
+          <div className="relative" ref={menuRef}>
+            <Button
+              variant="outline"
+              className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+              onClick={() => setMenuOpen(!menuOpen)}
             >
-              <Button
-                variant="ghost"
-                className="w-full text-left"
-                onClick={() => {
-                  setShowOverview(!showOverview);
-                  setMenuOpen(false);
-                }}
+              <Menu size={16} />
+            </Button>
+            {menuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className={`absolute right-0 mt-2 w-48 ${colorPalette[theme].card} rounded-md shadow-lg z-10`}
               >
-                {showOverview ? 'Hide Overview' : 'Show Overview'}
-              </Button>
-              {/* Add more menu items here */}
-            </motion.div>
-          )}
+                <Button
+                  variant="ghost"
+                  className={`w-full text-left ${colorPalette[theme].text}`}
+                  onClick={() => {
+                    setShowOverview(!showOverview);
+                    setMenuOpen(false);
+                  }}
+                >
+                  {showOverview ? 'Hide Overview' : 'Show Overview'}
+                </Button>
+              </motion.div>
+            )}
+          </div>
         </div>
       </div>
-      <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} />
+      <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} theme={theme} />
       <AnimatePresence>
         {addingTask && (
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="mb-6 flex items-center bg-white p-4 rounded-lg shadow-md"
+            className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
           >
             <Input 
               value={newTaskTitle}
               onChange={(e) => setNewTaskTitle(e.target.value)}
               placeholder="Enter new task title"
-              className="mr-2 flex-grow"
+              className={`mr-2 flex-grow ${colorPalette[theme].text}`}
             />
-            <Button onClick={addNewTask} className="bg-blue-500 hover:bg-blue-600 text-white transition-colors shadow-md">Add</Button>
+            <Button onClick={addNewTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Add</Button>
             <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">
               <X size={16} />
             </Button>
@@ -709,15 +789,15 @@ const TaskTracker = () => {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="mb-6 flex items-center bg-white p-4 rounded-lg shadow-md"
+            className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
           >
             <Input 
               value={editedTaskTitle}
               onChange={(e) => setEditedTaskTitle(e.target.value)}
               placeholder="Edit task title"
-              className="mr-2 flex-grow"
+              className={`mr-2 flex-grow ${colorPalette[theme].text}`}
             />
-            <Button onClick={saveEditedTask} className="bg-green-500 hover:bg-green-600 text-white transition-colors shadow-md">Save</Button>
+            <Button onClick={saveEditedTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Save</Button>
             <Button variant="ghost" onClick={() => setEditingTask(null)} className="ml-2">
               <X size={16} />
             </Button>
@@ -731,7 +811,7 @@ const TaskTracker = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
           >
-            <Overview tasks={allTasks} onNavigate={navigateToTask} />
+            <Overview tasks={allTasks} onNavigate={navigateToTask} theme={theme} />
           </motion.div>
         ) : (
           <motion.div
@@ -746,22 +826,23 @@ const TaskTracker = () => {
               onEditTask={startEditingTask}
               onDeleteTask={startDeletingTask}
               onToggleComplete={toggleTaskCompletion}
+              theme={theme}
             />
           </motion.div>
         )}
       </AnimatePresence>
       <AlertDialog open={deletingTask !== null} onOpenChange={() => setDeletingTask(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className={`${colorPalette[theme].card} ${colorPalette[theme].text}`}>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure you want to delete this task?</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className={`text-2xl font-bold ${colorPalette[theme].text}`}>Are you sure you want to delete this task?</AlertDialogTitle>
+            <AlertDialogDescription className={`${colorPalette[theme].text} opacity-80`}>
               This action cannot be undone. This will permanently delete the task
               "{deletingTask?.title}" and ALL its subtasks at any level.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDeleteTask} className="bg-red-500 hover:bg-red-600 text-white transition-colors">Delete</AlertDialogAction>
+            <AlertDialogCancel className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText}`}>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDeleteTask} className={`bg-red-500 hover:bg-red-600 text-white transition-colors`}>Delete</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
@@ -769,4 +850,55 @@ const TaskTracker = () => {
   );
 };
 
-export default TaskTracker;
+// Custom hook for confetti effect
+const useConfetti = () => {
+  const [isConfettiActive, setIsConfettiActive] = useState(false);
+
+  const triggerConfetti = () => {
+    setIsConfettiActive(true);
+    setTimeout(() => setIsConfettiActive(false), 5000); // Run for 5 seconds
+  };
+
+  return { isConfettiActive, triggerConfetti };
+};
+
+// Confetti component
+const Confetti = () => {
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50">
+      {/* Add your confetti animation here */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div className="w-full h-full">
+          {Array.from({ length: 50 }).map((_, index) => (
+            <div
+              key={index}
+              className="absolute animate-confetti"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `-10%`,
+                animation: `confetti ${5 + Math.random() * 5}s linear infinite`,
+                backgroundColor: `hsl(${Math.random() * 360}, 100%, 50%)`,
+                width: `${5 + Math.random() * 5}px`,
+                height: `${5 + Math.random() * 5}px`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Wrap the TaskTracker with confetti
+const TaskTrackerWithConfetti = () => {
+  const { isConfettiActive, triggerConfetti } = useConfetti();
+
+  return (
+    <>
+      <TaskTracker onTaskComplete={triggerConfetti} />
+      {isConfettiActive && <Confetti />}
+    </>
+  );
+};
+
+export default TaskTrackerWithConfetti;
