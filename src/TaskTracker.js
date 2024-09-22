@@ -3,7 +3,8 @@ import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { 
   PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, 
   CheckCircle, Circle, ChevronDown, X, Menu, Sun, Moon,
-  Clock, Target, Zap, Coffee, Calendar, BarChart, Settings
+  Clock, Target, Zap, Coffee, Calendar, BarChart, Settings,
+  ArrowRight, Gift
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
@@ -19,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "./components/ui/alert-dialog";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
+import { Progress } from "./components/ui/progress";
 import { supabase } from './supabaseClient';
 import confetti from 'canvas-confetti';
 
@@ -44,7 +46,7 @@ const useColorTheme = () => {
 
 const colorPalette = {
   light: {
-    background: 'bg-gradient-to-br from-gray-50 to-blue-50',
+    background: 'bg-gradient-to-br from-blue-50 to-indigo-100',
     card: 'bg-white',
     text: 'text-gray-800',
     accent: 'bg-gradient-to-r from-blue-500 to-indigo-600',
@@ -247,7 +249,12 @@ const OverviewTask = ({ task, level, onNavigate, theme }) => {
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className={`ml-${level * 4}`}>
+    <motion.div 
+      className={`ml-${level * 4}`}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, delay: level * 0.1 }}
+    >
       <div 
         className={`flex items-center py-2 px-4 ${colorPalette[theme].hover} rounded transition-colors cursor-pointer`}
         onClick={() => onNavigate(task)}
@@ -285,7 +292,7 @@ const OverviewTask = ({ task, level, onNavigate, theme }) => {
           ))}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 };
 
@@ -296,15 +303,25 @@ const Overview = ({ tasks, onNavigate, theme }) => {
         <h2 className={`text-2xl font-bold ${colorPalette[theme].text}`}>Task Overview</h2>
       </CardHeader>
       <CardContent>
-        {tasks.map(task => (
-          <OverviewTask
-            key={task.id}
-            task={task}
-            level={0}
-            onNavigate={onNavigate}
-            theme={theme}
-          />
-        ))}
+        <motion.div initial="hidden" animate="visible" variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: {
+              staggerChildren: 0.1
+            }
+          }
+        }}>
+          {tasks.map(task => (
+            <OverviewTask
+              key={task.id}
+              task={task}
+              level={0}
+              onNavigate={onNavigate}
+              theme={theme}
+            />
+          ))}
+        </motion.div>
       </CardContent>
     </Card>
   );
@@ -322,20 +339,20 @@ const TaskAnalytics = ({ tasks, theme }) => {
       </CardHeader>
       <CardContent>
         <div className={`grid grid-cols-1 md:grid-cols-3 gap-4 ${colorPalette[theme].text}`}>
-          <div className="text-center">
+          <motion.div className="text-center" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <p className="text-lg font-semibold">Total Tasks</p>
             <p className="text-3xl font-bold">{totalTasks}</p>
-          </div>
-          <div className="text-center">
+          </motion.div>
+          <motion.div className="text-center" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <p className="text-lg font-semibold">Completed Tasks</p>
             <p className="text-3xl font-bold">{completedTasks}</p>
-          </div>
-          <div className="text-center">
+          </motion.div>
+          <motion.div className="text-center" whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <p className="text-lg font-semibold">Completion Rate</p>
             <p className="text-3xl font-bold">{completionRate.toFixed(1)}%</p>
-          </div>
+          </motion.div>
         </div>
-        <div className="mt-4">
+        <div className="mt-8">
           <div className="relative pt-1">
             <div className="flex mb-2 items-center justify-between">
               <div>
@@ -349,15 +366,20 @@ const TaskAnalytics = ({ tasks, theme }) => {
                 </span>
               </div>
             </div>
-            <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200">
+            <motion.div 
+              className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-gray-200"
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 0.5 }}
+            >
               <motion.div 
                 style={{ width: `${completionRate}%` }}
                 className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${colorPalette[theme].accent}`}
                 initial={{ width: 0 }}
                 animate={{ width: `${completionRate}%` }}
-                transition={{ duration: 1 }}
+                transition={{ duration: 1, delay: 0.5 }}
               />
-            </div>
+            </motion.div>
           </div>
         </div>
       </CardContent>
@@ -393,7 +415,14 @@ const TaskInsights = ({ tasks, theme }) => {
         <h2 className={`text-2xl font-bold ${colorPalette[theme].text}`}>Task Insights</h2>
       </CardHeader>
       <CardContent>
-        <p className={`text-lg ${colorPalette[theme].text}`}>{getMotivationalMessage()}</p>
+        <motion.p 
+          className={`text-lg ${colorPalette[theme].text}`}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {getMotivationalMessage()}
+        </motion.p>
       </CardContent>
     </Card>
   );
@@ -433,15 +462,85 @@ const StreakTracker = ({ tasks, theme }) => {
       </CardHeader>
       <CardContent>
         <div className={`grid grid-cols-2 gap-4 ${colorPalette[theme].text}`}>
-          <div className="text-center">
+          <motion.div 
+            className="text-center"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
             <p className="text-lg font-semibold">Current Streak</p>
             <p className="text-3xl font-bold">{currentStreak} days</p>
-          </div>
-          <div className="text-center">
+          </motion.div>
+          <motion.div 
+            className="text-center"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
             <p className="text-lg font-semibold">Longest Streak</p>
             <p className="text-3xl font-bold">{longestStreak} days</p>
-          </div>
+          </motion.div>
         </div>
+        <motion.div 
+          className="mt-4 flex justify-center"
+          initial={{ opacity: 0, scale: 0.5 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.5 }}
+        >
+          {[...Array(7)].map((_, index) => (
+            <div 
+              key={index} 
+              className={`w-8 h-8 m-1 rounded-full ${
+                index < currentStreak % 7 
+                  ? `${colorPalette[theme].accent} ${colorPalette[theme].buttonText}`
+                  : 'bg-gray-200'
+              }`}
+            />
+          ))}
+        </motion.div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const ProductivityTips = ({ theme }) => {
+  const tips = [
+    "Break large tasks into smaller, manageable steps.",
+    "Use the Pomodoro Technique: Work for 25 minutes, then take a 5-minute break.",
+    "Prioritize your tasks using the Eisenhower Matrix.",
+    "Minimize distractions by turning off notifications during focus time.",
+    "Take regular breaks to maintain productivity and avoid burnout.",
+    "Set specific, achievable goals for each day.",
+    "Use the 'two-minute rule': If a task takes less than two minutes, do it immediately.",
+    "Regularly review and update your task list to stay organized.",
+    "Celebrate your accomplishments, no matter how small.",
+    "Stay hydrated and maintain a healthy work environment."
+  ];
+
+  const [currentTip, setCurrentTip] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTip((prev) => (prev + 1) % tips.length);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <Card className={`mt-6 shadow-lg ${colorPalette[theme].card}`}>
+      <CardHeader>
+        <h2 className={`text-2xl font-bold ${colorPalette[theme].text}`}>Productivity Tip</h2>
+      </CardHeader>
+      <CardContent>
+        <motion.p
+          key={currentTip}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.5 }}
+          className={`text-lg ${colorPalette[theme].text}`}
+        >
+          {tips[currentTip]}
+        </motion.p>
       </CardContent>
     </Card>
   );
@@ -666,6 +765,9 @@ const TaskTracker = () => {
       // Fetch tasks again to ensure consistency
       await fetchTasks(currentLevel.id === null ? null : currentLevel.id);
       await fetchAllTasks();
+
+      // Show success animation
+      triggerSuccessAnimation();
     } catch (error) {
       console.error('Error adding task:', error);
       setError('Failed to add task. Please try again.');
@@ -717,6 +819,9 @@ const TaskTracker = () => {
       setEditingTask(null);
       setEditedTaskTitle('');
       await fetchAllTasks();
+
+      // Show success animation
+      triggerSuccessAnimation();
     } catch (error) {
       console.error('Error updating task:', error);
       setError('Failed to update task. Please try again.');
@@ -756,160 +861,371 @@ const TaskTracker = () => {
         }
 
         const { error: deleteError } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', taskId);
+          .from('tasks')
+          .delete()
+          .eq('id', taskId);
 
-      if (deleteError) throw deleteError;
+        if (deleteError) throw deleteError;
 
-      console.log(`Successfully deleted task ID: ${taskId}`);
-    };
-
-    await deleteTaskAndSubtasks(deletingTask.id);
-
-    setTaskHierarchy(prev => {
-      const updated = [...prev];
-      const currentLevelIndex = updated.length - 1;
-      updated[currentLevelIndex] = {
-        ...updated[currentLevelIndex],
-        tasks: (updated[currentLevelIndex].tasks || []).filter(task => task.id !== deletingTask.id)
+        console.log(`Successfully deleted task ID: ${taskId}`);
       };
-      return updated;
-    });
 
-    setDeletingTask(null);
-    await fetchAllTasks();
-  } catch (error) {
-    console.error('Error deleting task:', error);
-    setError('Failed to delete task. Please try again.');
-  } finally {
-    setLoading(false);
-  }
-};
+      await deleteTaskAndSubtasks(deletingTask.id);
 
-const toggleTaskCompletion = async (task) => {
-  setLoading(true);
-  setError(null);
+      setTaskHierarchy(prev => {
+        const updated = [...prev];
+        const currentLevelIndex = updated.length - 1;
+        updated[currentLevelIndex] = {
+          ...updated[currentLevelIndex],
+          tasks: (updated[currentLevelIndex].tasks || []).filter(task => task.id !== deletingTask.id)
+        };
+        return updated;
+      });
 
-  const updatedTask = { ...task, completed: !task.completed };
+      setDeletingTask(null);
+      await fetchAllTasks();
 
-  // Optimistically update the UI
-  setTaskHierarchy(prev => {
-    const updated = [...prev];
-    const currentLevelIndex = updated.length - 1;
-    updated[currentLevelIndex] = {
-      ...updated[currentLevelIndex],
-      tasks: updated[currentLevelIndex].tasks.map(t => 
-        t.id === task.id ? updatedTask : t
-      )
-    };
-    return updated;
-  });
-
-  if (updatedTask.completed) {
-    triggerConfetti();
-  }
-
-  try {
-    console.log('Toggling task completion for task:', task);
-
-    const { error } = await supabase
-      .from('tasks')
-      .update({ completed: updatedTask.completed })
-      .eq('id', task.id);
-
-    if (error) {
-      console.error('Supabase error:', error);
-      throw new Error(`Supabase error: ${error.message}`);
+      // Show success animation
+      triggerSuccessAnimation();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      setError('Failed to delete task. Please try again.');
+    } finally {
+      setLoading(false);
     }
+  };
 
-    console.log('Successfully toggled task completion');
+  const toggleTaskCompletion = async (task) => {
+    setLoading(true);
+    setError(null);
 
-    // Refresh all tasks to ensure consistency
-    await fetchAllTasks();
-  } catch (error) {
-    console.error('Error toggling task completion:', error);
-    
-    // Revert the optimistic update
+    const updatedTask = { ...task, completed: !task.completed };
+
+    // Optimistically update the UI
     setTaskHierarchy(prev => {
       const updated = [...prev];
       const currentLevelIndex = updated.length - 1;
       updated[currentLevelIndex] = {
         ...updated[currentLevelIndex],
         tasks: updated[currentLevelIndex].tasks.map(t => 
-          t.id === task.id ? task : t
+          t.id === task.id ? updatedTask : t
         )
       };
       return updated;
     });
 
-    setError(`Failed to update task: ${error.message}. Please try again.`);
-  } finally {
-    setLoading(false);
-  }
-};
+    if (updatedTask.completed) {
+      triggerConfetti();
+    }
 
+    try {
+      console.log('Toggling task completion for task:', task);
 
-const triggerConfetti = () => {
-  confetti({
-    particleCount: 100,
-    spread: 70,
-    origin: { y: 0.6 }
-  });
-};
+      const { error } = await supabase
+        .from('tasks')
+        .update({ completed: updatedTask.completed })
+        .eq('id', task.id);
 
-const ProductivityTips = ({ theme }) => {
-  const tips = [
-    "Break large tasks into smaller, manageable steps.",
-    "Use the Pomodoro Technique: Work for 25 minutes, then take a 5-minute break.",
-    "Prioritize your tasks using the Eisenhower Matrix.",
-    "Minimize distractions by turning off notifications during focus time.",
-    "Take regular breaks to maintain productivity and avoid burnout.",
-    "Set specific, achievable goals for each day.",
-    "Use the 'two-minute rule': If a task takes less than two minutes, do it immediately.",
-    "Regularly review and update your task list to stay organized.",
-    "Celebrate your accomplishments, no matter how small.",
-    "Stay hydrated and maintain a healthy work environment."
-  ];
+      if (error) {
+        console.error('Supabase error:', error);
+        throw new Error(`Supabase error: ${error.message}`);
+      }
 
-  const [currentTip, setCurrentTip] = useState(0);
+      console.log('Successfully toggled task completion');
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTip((prev) => (prev + 1) % tips.length);
-    }, 10000);
+      // Refresh all tasks to ensure consistency
+      await fetchAllTasks();
 
-    return () => clearInterval(interval);
-  }, []);
+      // Show success animation
+      triggerSuccessAnimation();
+    } catch (error) {
+      console.error('Error toggling task completion:', error);
+      
+      // Revert the optimistic update
+      setTaskHierarchy(prev => {
+        const updated = [...prev];
+        const currentLevelIndex = updated.length - 1;
+        updated[currentLevelIndex] = {
+          ...updated[currentLevelIndex],
+          tasks: updated[currentLevelIndex].tasks.map(t => 
+            t.id === task.id ? task : t
+          )
+        };
+        return updated;
+      });
 
+      setError(`Failed to update task: ${error.message}. Please try again.`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const triggerConfetti = () => {
+    confetti({
+      particleCount: 100,
+      spread: 70,
+      origin: { y: 0.6 }
+    });
+  };
 
+  const triggerSuccessAnimation = () => {
+    // You can implement a custom success animation here
+    // For example, a subtle fade-in/fade-out message or a checkmark animation
+    console.log('Success animation triggered');
+  };
 
-
-  
+  if (loading) return (
+    <div className={`flex items-center justify-center h-screen ${colorPalette[theme].background}`}>
+      <motion.div
+        animate={{
+          scale: [1, 1.2, 1],
+          rotate: [0, 180, 360],
+        }}
+        transition={{
+          duration: 2,
+          ease: "easeInOut",
+          times: [0, 0.5, 1],
+          repeat: Infinity,
+        }}
+        className={`w-16 h-16 border-4 ${colorPalette[theme].accent} border-t-transparent rounded-full`}
+      />
+    </div>
+  );
 
   return (
-    <Card className={`mt-6 shadow-lg ${colorPalette[theme].card}`}>
-      <CardHeader>
-        <h2 className={`text-2xl font-bold ${colorPalette[theme].text}`}>Productivity Tip</h2>
-      </CardHeader>
-      <CardContent>
-        <motion.p
-          key={currentTip}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.5 }}
-          className={`text-lg ${colorPalette[theme].text}`}
-        >
-          {tips[currentTip]}
-        </motion.p>
-      </CardContent>
-    </Card>
+    <TooltipProvider>
+      <div className={`p-4 md:p-8 ${colorPalette[theme].background} min-h-screen`}>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className={`${colorPalette[theme].card} border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-md`}
+          >
+            <p className="font-bold">Error</p>
+            <p>{error}</p>
+          </motion.div>
+        )}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            {taskHierarchy.length > 1 && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+              >
+                <Button variant="outline" onClick={navigateBack} className={`mr-4 ${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>
+                  <ChevronLeft size={16} className="mr-2" />
+                  Back
+                </Button>
+              </motion.div>
+            )}
+            <motion.h1 
+              className={`text-2xl md:text-3xl font-bold ${colorPalette[theme].text} truncate`}
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+            >
+              {currentLevel.title}
+            </motion.h1>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+                  onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                >
+                  {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              </TooltipContent>
+            </Tooltip>
+            <div className="relative" ref={menuRef}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+                    onClick={() => setMenuOpen(!menuOpen)}
+                  >
+                    <Menu size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Menu</TooltipContent>
+              </Tooltip>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className={`absolute right-0 mt-2 w-48 ${colorPalette[theme].card} rounded-md shadow-lg z-10`}
+                >
+                  <Button
+                    variant="ghost"
+                    className={`w-full text-left ${colorPalette[theme].text}`}
+                    onClick={() => {
+                      setShowOverview(!showOverview);
+                      setShowAnalytics(false);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {showOverview ? 'Hide Overview' : 'Show Overview'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`w-full text-left ${colorPalette[theme].text}`}
+                    onClick={() => {
+                      setShowAnalytics(!showAnalytics);
+                      setShowOverview(false);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+                  </Button>
+                </motion.div>
+              )}
+            </div>
+          </div>
+        </div>
+        <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} theme={theme} />
+        <AnimatePresence>
+          {addingTask && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
+            >
+              <Input 
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                placeholder="Enter new task title"
+                className={`mr-2 flex-grow ${colorPalette[theme].text}`}
+              />
+              <Button onClick={addNewTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Add</Button>
+              <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">
+                <X size={16} />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {editingTask && (
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
+            >
+              <Input 
+                value={editedTaskTitle}
+                onChange={(e) => setEditedTaskTitle(e.target.value)}
+                placeholder="Edit task title"
+                className={`mr-2 flex-grow ${colorPalette[theme].text}`}
+              />
+              <Button onClick={saveEditedTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Save</Button>
+              <Button variant="ghost" onClick={() => setEditingTask(null)} className="ml-2">
+                <X size={16} />
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AnimatePresence>
+          {showOverview ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+            >
+              <Overview tasks={allTasks} onNavigate={navigateToTask} theme={theme} />
+            </motion.div>
+          ) : showAnalytics ? (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+            >
+              <TaskAnalytics tasks={allTasks} theme={theme} />
+              <TaskInsights tasks={allTasks} theme={theme} />
+              <StreakTracker tasks={allTasks} theme={theme} />
+              <ProductivityTips theme={theme} />
+            </motion.div>
+          ) : (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+            >
+              <EisenhowerMatrix 
+                tasks={currentLevel.tasks} 
+                onOpenMatrix={navigateToTask}
+                onAddTask={startAddingTask}
+                onEditTask={startEditingTask}
+                onDeleteTask={startDeletingTask}
+                onToggleComplete={toggleTaskCompletion}
+                theme={theme}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <AlertDialog open={deletingTask !== null} onOpenChange={() => setDeletingTask(null)}>
+          <AlertDialogContent className={`${colorPalette[theme].card} ${colorPalette[theme].text}`}>
+            <AlertDialogHeader>
+              <AlertDialogTitle className={`text-2xl font-bold ${colorPalette[theme].text}`}>Are you sure you want to delete this task?</AlertDialogTitle>
+              <AlertDialogDescription className={`${colorPalette[theme].text} opacity-80`}>
+                This action cannot be undone. This will permanently delete the task
+                "{deletingTask?.title}" and ALL its subtasks at any level.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText}`}>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeleteTask} className={`bg-red-500 hover:bg-red-600 text-white transition-colors`}>Delete</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    </TooltipProvider>
   );
 };
 
-if (loading) return (
+// New component for task completion celebrations
+const TaskCompletionCelebration = ({ show, onComplete }) => {
+  useEffect(() => {
+    if (show) {
+      const timer = setTimeout(() => {
+        onComplete();
+      }, 3000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [show, onComplete]);
+
+  if (!show) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.5 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.5 }}
+      className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50"
+    >
+      <div className="bg-white rounded-lg p-8 text-center">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Gift size={64} className="text-green-500 mx-auto mb-4" />
+        </motion.div>
+        <h2 className="text-2xl font-bold mb-2">Task Completed!</h2>
+        <p className="text-gray-600">Great job! Keep up the good work!</p>
+      </div>
+    </motion.div>
+  );
+};
+
+// Enhanced loading component
+const LoadingSpinner = ({ theme }) => (
   <div className={`flex items-center justify-center h-screen ${colorPalette[theme].background}`}>
     <motion.div
       animate={{
@@ -924,10 +1240,19 @@ if (loading) return (
       }}
       className={`w-16 h-16 border-4 ${colorPalette[theme].accent} border-t-transparent rounded-full`}
     />
+    <motion.p
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ delay: 0.5 }}
+      className={`ml-4 text-lg font-semibold ${colorPalette[theme].text}`}
+    >
+      Loading your tasks...
+    </motion.p>
   </div>
 );
 
-if (error) return (
+// Enhanced error component
+const ErrorMessage = ({ error, theme }) => (
   <motion.div
     initial={{ opacity: 0, y: -20 }}
     animate={{ opacity: 1, y: 0 }}
@@ -935,211 +1260,44 @@ if (error) return (
   >
     <p className="font-bold">Error</p>
     <p>{error}</p>
+    <Button 
+      onClick={() => window.location.reload()} 
+      className="mt-4 bg-red-500 text-white hover:bg-red-600 transition-colors"
+    >
+      Retry
+    </Button>
   </motion.div>
 );
 
-return (
-  <TooltipProvider>
-  <div className={`p-4 md:p-8 ${colorPalette[theme].background} min-h-screen`}>
-  {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className={`${colorPalette[theme].card} border-l-4 border-red-500 text-red-700 p-4 m-4 rounded shadow-md`}
-          >
-            <p className="font-bold">Error</p>
-            <p>{error}</p>
-          </motion.div>
-        )}
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center">
-        {taskHierarchy.length > 1 && (
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-          >
-            <Button variant="outline" onClick={navigateBack} className={`mr-4 ${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>
-              <ChevronLeft size={16} className="mr-2" />
-              Back
-            </Button>
-          </motion.div>
-        )}
-        <motion.h1 
-          className={`text-2xl md:text-3xl font-bold ${colorPalette[theme].text} truncate`}
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          {currentLevel.title}
-        </motion.h1>
-      </div>
-      <div className="flex items-center space-x-2">
-      <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-              >
-                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            </TooltipContent>
-          </Tooltip>
-        <div className="relative" ref={menuRef}>
-        <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="outline"
-                  className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
-                  onClick={() => setMenuOpen(!menuOpen)}
-                >
-                  <Menu size={16} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Menu</TooltipContent>
-            </Tooltip>
-          {menuOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className={`absolute right-0 mt-2 w-48 ${colorPalette[theme].card} rounded-md shadow-lg z-10`}
-            >
-              <Button
-                variant="ghost"
-                className={`w-full text-left ${colorPalette[theme].text}`}
-                onClick={() => {
-                  setShowOverview(!showOverview);
-                  setShowAnalytics(false);
-                  setMenuOpen(false);
-                }}
-              >
-                {showOverview ? 'Hide Overview' : 'Show Overview'}
-              </Button>
-              <Button
-                variant="ghost"
-                className={`w-full text-left ${colorPalette[theme].text}`}
-                onClick={() => {
-                  setShowAnalytics(!showAnalytics);
-                  setShowOverview(false);
-                  setMenuOpen(false);
-                }}
-              >
-                {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
-              </Button>
-            </motion.div>
-          )}
-        </div>
-      </div>
-    </div>
-    <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} theme={theme} />
-    <AnimatePresence>
-      {addingTask && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
-        >
-          <Input 
-            value={newTaskTitle}
-            onChange={(e) => setNewTaskTitle(e.target.value)}
-            placeholder="Enter new task title"
-            className={`mr-2 flex-grow ${colorPalette[theme].text}`}
-          />
-          <Button onClick={addNewTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Add</Button>
-          <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">
-            <X size={16} />
-          </Button>
-        </motion.div>
-      )}
-    </AnimatePresence>
-    <AnimatePresence>
-      {editingTask && (
-        <motion.div 
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
-        >
-          <Input 
-            value={editedTaskTitle}
-            onChange={(e) => setEditedTaskTitle(e.target.value)}
-            placeholder="Edit task title"
-            className={`mr-2 flex-grow ${colorPalette[theme].text}`}
-          />
-          <Button onClick={saveEditedTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Save</Button>
-          <Button variant="ghost" onClick={() => setEditingTask(null)} className="ml-2">
-            <X size={16} />
-          </Button>
-        </motion.div>
-      )}
-    </AnimatePresence>
-    <AnimatePresence>
-      {showOverview ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-        >
-          <Overview tasks={allTasks} onNavigate={navigateToTask} theme={theme} />
-        </motion.div>
-      ) : showAnalytics ? (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-        >
-          <TaskAnalytics tasks={allTasks} theme={theme} />
-          <TaskInsights tasks={allTasks} theme={theme} />
-          <StreakTracker tasks={allTasks} theme={theme} />
-          <ProductivityTips theme={theme} />
-        </motion.div>
-      ) : (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 20 }}
-        >
-          <EisenhowerMatrix 
-            tasks={currentLevel.tasks} 
-            onOpenMatrix={navigateToTask}
-            onAddTask={startAddingTask}
-            onEditTask={startEditingTask}
-            onDeleteTask={startDeletingTask}
-            onToggleComplete={toggleTaskCompletion}
-            theme={theme}
-          />
-        </motion.div>
-      )}
-    </AnimatePresence>
-    <AlertDialog open={deletingTask !== null} onOpenChange={() => setDeletingTask(null)}>
-      <AlertDialogContent className={`${colorPalette[theme].card} ${colorPalette[theme].text}`}>
-        <AlertDialogHeader>
-          <AlertDialogTitle className={`text-2xl font-bold ${colorPalette[theme].text}`}>Are you sure you want to delete this task?</AlertDialogTitle>
-          <AlertDialogDescription className={`${colorPalette[theme].text} opacity-80`}>
-            This action cannot be undone. This will permanently delete the task
-            "{deletingTask?.title}" and ALL its subtasks at any level.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText}`}>Cancel</AlertDialogCancel>
-          <AlertDialogAction onClick={confirmDeleteTask} className={`bg-red-500 hover:bg-red-600 text-white transition-colors`}>Delete</AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  </div>
-  </TooltipProvider>
-);
+// Main App component
+const App = () => {
+  const [theme] = useColorTheme();
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showCelebration, setShowCelebration] = useState(false);
 
+  useEffect(() => {
+    // Simulate initial loading
+    setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+  }, []);
 
+  if (loading) return <LoadingSpinner theme={theme} />;
+  if (error) return <ErrorMessage error={error} theme={theme} />;
 
-
-
+  return (
+    <>
+      <TaskTracker 
+        onTaskComplete={() => setShowCelebration(true)}
+        onError={setError}
+      />
+      <TaskCompletionCelebration 
+        show={showCelebration} 
+        onComplete={() => setShowCelebration(false)}
+      />
+    </>
+  );
 };
 
-
-
-export default TaskTracker;
+export default App;
