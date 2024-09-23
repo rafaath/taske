@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { ErrorBoundary } from 'react-error-boundary';
 import { 
@@ -574,24 +574,18 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
   const [allTasks, setAllTasks] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const currentLevel = taskHierarchy[taskHierarchy.length - 1] || { tasks: [] };
-
   const menuRef = useRef(null);
 
-  useEffect(() => {
-    console.log('TaskTracker: Initial render');
-    fetchTasks();
-    fetchAllTasks();
-  }, []);
+  const initialFetchRef = useRef(null);
+  const isMounted = useRef(false);
+  const renderCount = useRef(0);
+  const dataFetched = useRef(false);
 
-  useEffect(() => {
-    console.log('Task hierarchy updated:', taskHierarchy);
-  }, [taskHierarchy]);
+  const currentLevel = useMemo(() => taskHierarchy[taskHierarchy.length - 1] || { tasks: [] }, [taskHierarchy]);
 
   const fetchTasks = useCallback(async (parentId = null) => {
+    if (!isMounted.current) return;
     console.log('Fetching tasks...');
-    setLoading(true);
-    setError(null);
     try {
       let query = supabase
         .from('tasks')
@@ -613,26 +607,25 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
       setTaskHierarchy(prev => {
         const updated = [...prev];
         const currentLevelIndex = updated.length - 1;
-        updated[currentLevelIndex] = {
-          ...updated[currentLevelIndex],
-          tasks: data || []
-        };
-        console.log('Updated task hierarchy after fetch:', updated);
-        return updated;
+        if (JSON.stringify(updated[currentLevelIndex].tasks) !== JSON.stringify(data)) {
+          updated[currentLevelIndex] = {
+            ...updated[currentLevelIndex],
+            tasks: data || []
+          };
+          return updated;
+        }
+        return prev;
       });
     } catch (error) {
       console.error('Error fetching tasks:', error);
       setError('Failed to fetch tasks. Please try again.');
       onError(error);
-    } finally {
-      setLoading(false);
     }
   }, [onError]);
 
   const fetchAllTasks = useCallback(async () => {
+    if (!isMounted.current) return;
     console.log('Fetching all tasks...');
-    setLoading(true);
-    setError(null);
     try {
       const { data, error } = await supabase
         .from('tasks')
@@ -658,15 +651,35 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
       console.error('Error fetching all tasks:', error);
       setError('Failed to fetch all tasks. Please try again.');
       onError(error);
-    } finally {
-      setLoading(false);
     }
   }, [onError]);
 
   useEffect(() => {
-    fetchTasks();
-    fetchAllTasks();
+    isMounted.current = true;
+    
+    if (!initialFetchRef.current) {
+      initialFetchRef.current = (async () => {
+        console.log('TaskTracker: Initial render');
+        await fetchTasks();
+        await fetchAllTasks();
+        dataFetched.current = true;
+        setLoading(false);
+      })();
+    }
+
+    return () => {
+      isMounted.current = false;
+    };
   }, [fetchTasks, fetchAllTasks]);
+
+  useEffect(() => {
+    if (isMounted.current && dataFetched.current && !loading) {
+      console.log('Task hierarchy updated:', taskHierarchy);
+    }
+  }, [taskHierarchy, loading]);
+
+
+  // ... rest of the compon
 
   const navigateToTask = async (task) => {
     if (!task || !task.id) {
@@ -1043,7 +1056,9 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
       </motion.p>
     </div>
   );
-
+  if (process.env.NODE_ENV === 'development') {
+    console.log(`TaskTracker: Render #${++renderCount.current}${loading ? ' (loading)' : ''}`);
+  }
   if (loading) {
     console.log('TaskTracker: Rendering loading spinner');
     return <LoadingSpinner theme={theme} />;
