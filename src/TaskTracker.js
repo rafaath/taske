@@ -5,7 +5,7 @@ import {
   PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, 
   CheckCircle, Circle, ChevronDown, X, Menu, Sun, Moon,
   Clock, Target, Zap, Coffee, Calendar, BarChart, Settings,
-  ArrowRight, Gift, Home
+  ArrowRight, Gift, Home, StickyNote
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
@@ -14,16 +14,19 @@ import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
-  AlertDialogContent,
+  AlertDialogContent, 
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./components/ui/alert-dialog";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
+import { Textarea } from './components/ui/textarea';
 import { Progress } from "./components/ui/progress";
 import { supabase } from './supabaseClient';
 import confetti from 'canvas-confetti';
+import NoteEditModal from './NoteEditModal';
+import TaskDetailsModal from './TaskDetailsModal';
 
 const useColorTheme = () => {
   const [theme, setTheme] = useState('light');
@@ -106,14 +109,16 @@ const Breadcrumb = ({ hierarchy, onNavigate, theme }) => (
   </motion.div>
 );
 
-const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, theme }) => {
+const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, onOpenDetails, theme }) => {
   const controls = useAnimation();
 
-  useEffect(() => {
+  React.useEffect(() => {
     controls.start({ opacity: 1, y: 0 });
   }, [controls]);
 
   if (!task || !task.id) return null;
+
+  const hasNote = task.notes && task.notes.trim().length > 0;
   
   return (
     <motion.div 
@@ -121,62 +126,89 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, 
       initial={{ opacity: 0, y: 20 }}
       animate={controls}
       exit={{ opacity: 0, y: -20 }}
-      className={`mb-3 flex items-center p-4 rounded-lg ${colorPalette[theme].card} shadow-md hover:shadow-xl transition-all duration-300 ${task.completed ? 'opacity-60' : ''}`}
+      className={`mb-3 rounded-lg ${colorPalette[theme].card} shadow-md hover:shadow-xl transition-all duration-300 ${task.completed ? 'opacity-60' : ''} cursor-pointer overflow-hidden`}
+      onClick={() => onOpenDetails(task)}
     >
-      <Tooltip content={task.completed ? "Mark as incomplete" : "Mark as complete"}>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="mr-3 p-0"
-          onClick={() => onToggleComplete(task)}
-        >
-          {task.completed ? (
-            <CheckCircle size={20} className="text-green-500" />
-          ) : (
-            <Circle size={20} className="text-gray-300" />
-          )}
-        </Button>
-      </Tooltip>
-      <span className={`flex-grow truncate max-w-[150px] sm:max-w-[200px] md:max-w-[250px] ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
-        {task.title}
-      </span>
-      <div className="flex items-center space-x-2">
-        <Tooltip content="Open subtasks">
-          <Button 
-            variant="ghost" 
+      <div className="flex items-center p-4">
+        <Tooltip content={task.completed ? "Mark as incomplete" : "Mark as complete"}>
+          <Button
+            variant="ghost"
             size="sm"
-            className={`text-indigo-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
-            onClick={() => onOpenMatrix(task)}
+            className="mr-3 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleComplete(task);
+            }}
           >
-            <ChevronRight size={16} />
+            {task.completed ? (
+              <CheckCircle size={20} className="text-green-500" />
+            ) : (
+              <Circle size={20} className="text-gray-300" />
+            )}
           </Button>
         </Tooltip>
-        <Tooltip content="Edit task">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className={`text-yellow-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
-            onClick={() => onEditTask(task)}
-          >
-            <Edit size={16} />
-          </Button>
-        </Tooltip>
-        <Tooltip content="Delete task">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            className={`text-red-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
-            onClick={() => onDeleteTask(task)}
-          >
-            <Trash2 size={16} />
-          </Button>
-        </Tooltip>
+        <span className={`flex-grow truncate max-w-[150px] sm:max-w-[200px] md:max-w-[250px] ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
+          {task.title}
+        </span>
+        <div className="flex items-center space-x-2">
+          <Tooltip content="Open subtasks">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className={`text-indigo-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenMatrix(task);
+              }}
+            >
+              <ChevronRight size={16} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Edit task">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className={`text-yellow-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditTask(task);
+              }}
+            >
+              <Edit size={16} />
+            </Button>
+          </Tooltip>
+          <Tooltip content="Delete task">
+            <Button 
+              variant="ghost" 
+              size="sm"
+              className={`text-red-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDeleteTask(task);
+              }}
+            >
+              <Trash2 size={16} />
+            </Button>
+          </Tooltip>
+        </div>
       </div>
+      {hasNote && (
+        <div 
+          className={`px-4 py-2 text-sm ${
+            theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
+          } border-t ${
+            theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
+          } flex items-center space-x-2`}
+        >
+          <StickyNote size={14} className="flex-shrink-0 text-yellow-500" />
+          <p className="truncate">{task.notes}</p>
+        </div>
+      )}
     </motion.div>
   );
 };
 
-const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, theme, color }) => {
+const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, onEditNote, onOpenDetails, theme, color }) => {
   return (
     <Card className={`h-full overflow-hidden shadow-lg bg-gradient-to-br ${color} ${theme === 'dark' ? 'bg-opacity-20' : ''}`}>
       <CardHeader className={`font-semibold flex justify-between items-center p-4 ${colorPalette[theme].text}`}>
@@ -206,6 +238,8 @@ const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDel
               onEditTask={onEditTask}
               onDeleteTask={onDeleteTask}
               onToggleComplete={onToggleComplete}
+              onEditNote={onEditNote}
+              onOpenDetails={onOpenDetails}
               theme={theme}
             />
           ))}
@@ -214,9 +248,7 @@ const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDel
     </Card>
   );
 };
-
-
-const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, theme }) => {
+const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, onEditNote, onOpenDetails, theme }) => {
   const filterTasks = (urgent, important) => 
     (tasks || []).filter(t => 
       t?.urgent === urgent && 
@@ -242,6 +274,8 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
           onEditTask={onEditTask}
           onDeleteTask={onDeleteTask}
           onToggleComplete={onToggleComplete}
+          onEditNote={onEditNote}
+          onOpenDetails={onOpenDetails}
           theme={theme}
           color={quadrant.color}
         />
@@ -575,13 +609,22 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const menuRef = useRef(null);
-
+  const [selectedTask, setSelectedTask] = useState(null);
   const initialFetchRef = useRef(null);
   const isMounted = useRef(false);
   const renderCount = useRef(0);
   const dataFetched = useRef(false);
 
   const currentLevel = useMemo(() => taskHierarchy[taskHierarchy.length - 1] || { tasks: [] }, [taskHierarchy]);
+
+  const handleOpenDetails = (task) => {
+    setSelectedTask(task);
+  };
+
+  const handleCloseDetails = () => {
+    setSelectedTask(null);
+  };
+
 
   const fetchTasks = useCallback(async (parentId = null) => {
     if (!isMounted.current) return;
@@ -1071,10 +1114,88 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
 
   console.log('TaskTracker: Rendering main content');
 
+
+  const handleEditNote = async (taskId, newNote) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ notes: newNote })
+        .eq('id', taskId)
+        .single();
+
+      if (error) throw error;
+
+      setTaskHierarchy(prev => {
+        const updated = [...prev];
+        const currentLevelIndex = updated.length - 1;
+        updated[currentLevelIndex] = {
+          ...updated[currentLevelIndex],
+          tasks: updated[currentLevelIndex].tasks.map(task => 
+            task.id === taskId ? { ...task, notes: newNote } : task
+          )
+        };
+        return updated;
+      });
+
+      if (selectedTask && selectedTask.id === taskId) {
+        setSelectedTask({ ...selectedTask, notes: newNote });
+      }
+
+      // Show success animation
+      triggerSuccessAnimation();
+    } catch (error) {
+      console.error('Error updating note:', error);
+      setError('Failed to update note. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const editNote = async (taskId, newNote) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({ notes: newNote })
+        .eq('id', taskId)
+        .single();
+
+      if (error) throw error;
+
+      setTaskHierarchy(prev => {
+        const updated = [...prev];
+        const currentLevelIndex = updated.length - 1;
+        updated[currentLevelIndex] = {
+          ...updated[currentLevelIndex],
+          tasks: updated[currentLevelIndex].tasks.map(task => 
+            task.id === taskId ? { ...task, notes: newNote } : task
+          )
+        };
+        return updated;
+      });
+
+      // Show success animation
+      triggerSuccessAnimation();
+    } catch (error) {
+      console.error('Error updating note:', error);
+      setError('Failed to update note. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+
+
+
+
   return (
     <TooltipProvider>
     <div className={`p-4 md:p-8 ${colorPalette[theme].background} min-h-screen`}>
-    <TaskSearch tasks={allTasks} onSelectTask={handleSearchSelect} theme={theme} />
+      <TaskSearch tasks={allTasks} onSelectTask={handleSearchSelect} theme={theme} />
       {error && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -1250,14 +1371,24 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
               exit={{ opacity: 0, y: 20 }}
             >
               <EisenhowerMatrix 
-                tasks={currentLevel.tasks} 
-                onOpenMatrix={navigateToTask}
-                onAddTask={startAddingTask}
-                onEditTask={startEditingTask}
-                onDeleteTask={startDeletingTask}
-                onToggleComplete={toggleTaskCompletion}
-                theme={theme}
-              />
+          tasks={currentLevel.tasks} 
+          onOpenMatrix={navigateToTask}
+          onAddTask={startAddingTask}
+          onEditTask={startEditingTask}
+          onDeleteTask={startDeletingTask}
+          onToggleComplete={toggleTaskCompletion}
+          onOpenDetails={handleOpenDetails}
+          theme={theme}
+        />
+        <TaskDetailsModal
+          isOpen={selectedTask !== null}
+          onClose={handleCloseDetails}
+          task={selectedTask}
+          onEditNote={editNote}
+          onToggleComplete={toggleTaskCompletion}
+          theme={theme}
+          colorPalette={colorPalette}
+        />
             </motion.div>
           )}
         </AnimatePresence>
