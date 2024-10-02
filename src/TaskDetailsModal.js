@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Clock, Target, CheckCircle, Calendar, Edit2, Save } from 'lucide-react';
+import { X, Clock, Target, CheckCircle, Calendar, Edit2, Save, AlertTriangle } from 'lucide-react';
 import { Button } from './components/ui/button';
 import { Textarea } from './components/ui/textarea';
+import { Tooltip } from './components/ui/tooltip';
 
 const TaskDetailsModal = ({ isOpen, onClose, task, onEditNote, onToggleComplete, theme, colorPalette }) => {
   const [noteContent, setNoteContent] = useState(task?.notes || '');
@@ -30,6 +31,10 @@ const TaskDetailsModal = ({ isOpen, onClose, task, onEditNote, onToggleComplete,
     onToggleComplete(task);
   };
 
+  const priorityColor = task.urgent && task.important ? 'text-red-500' :
+                        task.urgent ? 'text-orange-500' :
+                        task.important ? 'text-blue-500' : 'text-gray-500';
+
   return (
     <AnimatePresence>
       <motion.div
@@ -53,24 +58,24 @@ const TaskDetailsModal = ({ isOpen, onClose, task, onEditNote, onToggleComplete,
             </div>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <div className="flex items-center">
-                  {task.urgent ? (
-                    <Clock className="mr-2 text-red-500" size={20} />
-                  ) : (
-                    <Clock className="mr-2 text-gray-500" size={20} />
-                  )}
-                  <span>{task.urgent ? 'Urgent' : 'Not Urgent'}</span>
-                </div>
-                <div className="flex items-center">
-                  {task.important ? (
-                    <Target className="mr-2 text-blue-500" size={20} />
-                  ) : (
-                    <Target className="mr-2 text-gray-500" size={20} />
-                  )}
-                  <span>{task.important ? 'Important' : 'Not Important'}</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
+                <Tooltip content={`Priority: ${task.urgent && task.important ? 'High' : task.urgent || task.important ? 'Medium' : 'Low'}`}>
+                  <div className={`flex items-center ${priorityColor}`}>
+                    {task.urgent && task.important ? (
+                      <AlertTriangle className="mr-2" size={20} />
+                    ) : task.urgent ? (
+                      <Clock className="mr-2" size={20} />
+                    ) : task.important ? (
+                      <Target className="mr-2" size={20} />
+                    ) : (
+                      <Clock className="mr-2" size={20} />
+                    )}
+                    <span>
+                      {task.urgent && task.important ? 'High Priority' :
+                       task.urgent ? 'Urgent' :
+                       task.important ? 'Important' : 'Normal Priority'}
+                    </span>
+                  </div>
+                </Tooltip>
                 <div className="flex items-center">
                   <Button
                     variant="ghost"
@@ -78,18 +83,14 @@ const TaskDetailsModal = ({ isOpen, onClose, task, onEditNote, onToggleComplete,
                     onClick={handleToggleComplete}
                     className="p-0 hover:bg-transparent"
                   >
-                    {task.completed ? (
-                      <CheckCircle className="mr-2 text-green-500" size={20} />
-                    ) : (
-                      <CheckCircle className="mr-2 text-gray-500" size={20} />
-                    )}
+                    <CheckCircle className={`mr-2 ${task.completed ? 'text-green-500' : 'text-gray-500'}`} size={20} />
                   </Button>
                   <span>{task.completed ? 'Completed' : 'Not Completed'}</span>
                 </div>
-                <div className="flex items-center">
-                  <Calendar className="mr-2" size={20} />
-                  <span>Created: {new Date(task.created_at).toLocaleString()}</span>
-                </div>
+              </div>
+              <div className="flex items-center">
+                <Calendar className="mr-2" size={20} />
+                <span>Created: {new Date(task.created_at).toLocaleString()}</span>
               </div>
               <div>
                 <div className="flex justify-between items-center mb-2">
@@ -108,13 +109,19 @@ const TaskDetailsModal = ({ isOpen, onClose, task, onEditNote, onToggleComplete,
                     onChange={handleNoteChange}
                     onBlur={handleSaveNote}
                     placeholder="Add a note..."
-                    className="w-full h-32"
+                    className="w-full h-32 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                     autoFocus
                   />
                 ) : (
-                  <p className="w-full h-32 overflow-y-auto p-2 bg-gray-100 dark:bg-gray-700 rounded">
-                    {noteContent || "No notes added yet."}
-                  </p>
+                  <div className="w-full h-32 overflow-y-auto p-4 bg-gray-50 dark:bg-gray-800 rounded-md shadow-inner">
+                    {noteContent ? (
+                      <p className="whitespace-pre-wrap text-gray-800 dark:text-gray-200 leading-relaxed">
+                        {noteContent}
+                      </p>
+                    ) : (
+                      <p className="text-gray-400 dark:text-gray-500 italic">No notes added yet.</p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

@@ -25,7 +25,6 @@ import { Textarea } from './components/ui/textarea';
 import { Progress } from "./components/ui/progress";
 import { supabase } from './supabaseClient';
 import confetti from 'canvas-confetti';
-import NoteEditModal from './NoteEditModal';
 import TaskDetailsModal from './TaskDetailsModal';
 
 const useColorTheme = () => {
@@ -1206,101 +1205,104 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
           <p>{error}</p>
         </motion.div>
       )}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center space-x-4">
-          {taskHierarchy.length > 1 && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-            >
-              <Button variant="outline" onClick={navigateBack} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>
-                <ChevronLeft size={16} className="mr-2" />
-                Back
-              </Button>
-            </motion.div>
-          )}
-          <motion.h1 
-            className={`text-2xl md:text-3xl font-bold ${colorPalette[theme].text} truncate max-w-[200px] sm:max-w-[300px] md:max-w-[400px]`}
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            {currentLevel.title}
-          </motion.h1>
-        </div>
-        <div className="flex items-center space-x-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
-                onClick={navigateHome}
+      <div className="flex flex-col mb-4">
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center space-x-4">
+            {taskHierarchy.length > 1 && (
+              <motion.div
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
               >
-                <Home size={16} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>Go Home</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-              >
-                {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            </TooltipContent>
-          </Tooltip>
-          <div className="relative" ref={menuRef}>
+                <Button variant="outline" onClick={navigateBack} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>
+                  <ChevronLeft size={16} className="mr-2" />
+                  Back
+                </Button>
+              </motion.div>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="outline"
                   className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
-                  onClick={() => setMenuOpen(!menuOpen)}
+                  onClick={navigateHome}
                 >
-                  <Menu size={16} />
+                  <Home size={16} />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>Menu</TooltipContent>
+              <TooltipContent>Go Home</TooltipContent>
             </Tooltip>
-            {menuOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className={`absolute right-0 mt-2 w-48 ${colorPalette[theme].card} rounded-md shadow-lg z-10`}
-              >
+            <Tooltip>
+              <TooltipTrigger asChild>
                 <Button
-                  variant="ghost"
-                  className={`w-full text-left ${colorPalette[theme].text}`}
-                  onClick={() => {
-                    setShowOverview(!showOverview);
-                    setShowAnalytics(false);
-                    setMenuOpen(false);
-                  }}
+                  variant="outline"
+                  className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+                  onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                 >
-                  {showOverview ? 'Hide Overview' : 'Show Overview'}
+                  {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
                 </Button>
-                <Button
-                  variant="ghost"
-                  className={`w-full text-left ${colorPalette[theme].text}`}
-                  onClick={() => {
-                    setShowAnalytics(!showAnalytics);
-                    setShowOverview(false);
-                    setMenuOpen(false);
-                  }}
+              </TooltipTrigger>
+              <TooltipContent>
+                {theme === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
+              </TooltipContent>
+            </Tooltip>
+            <div className="relative" ref={menuRef}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+                    onClick={() => setMenuOpen(!menuOpen)}
+                  >
+                    <Menu size={16} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Menu</TooltipContent>
+              </Tooltip>
+              {menuOpen && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  className={`absolute right-0 mt-2 w-48 ${colorPalette[theme].card} rounded-md shadow-lg z-10`}
                 >
-                  {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
-                </Button>
-              </motion.div>
-            )}
+                  <Button
+                    variant="ghost"
+                    className={`w-full text-left ${colorPalette[theme].text}`}
+                    onClick={() => {
+                      setShowOverview(!showOverview);
+                      setShowAnalytics(false);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {showOverview ? 'Hide Overview' : 'Show Overview'}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className={`w-full text-left ${colorPalette[theme].text}`}
+                    onClick={() => {
+                      setShowAnalytics(!showAnalytics);
+                      setShowOverview(false);
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {showAnalytics ? 'Hide Analytics' : 'Show Analytics'}
+                  </Button>
+                </motion.div>
+              )}
+            </div>
           </div>
         </div>
+        <motion.h1 
+          className={`text-2xl md:text-3xl font-bold ${colorPalette[theme].text} truncate max-w-full`}
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+        >
+          {currentLevel.title.length > 100 ? `${currentLevel.title.substring(0, 150)}...` : currentLevel.title}
+        </motion.h1>
       </div>
+      
       <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} theme={theme} />
         <AnimatePresence>
           {addingTask && (
