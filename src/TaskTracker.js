@@ -5,7 +5,7 @@ import {
   PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, 
   CheckCircle, Circle, ChevronDown, X, Menu, Sun, Moon,
   Clock, Target, Zap, Coffee, Calendar, BarChart, Settings,
-  ArrowRight, Gift, Home, StickyNote, AlertCircle, Badge
+  ArrowRight, Gift, Home, StickyNote, AlertCircle, Badge, List, Search
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
@@ -822,6 +822,7 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [allTasks, setAllTasks] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   const menuRef = useRef(null);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -840,6 +841,18 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
     setSelectedTask(null);
   };
 
+  const handleSearchSelect = (task) => {
+    // Navigate to the task's parent if it has one, otherwise to the task itself
+    if (task.parent_id) {
+      const parentTask = allTasks.find(t => t.id === task.parent_id);
+      if (parentTask) {
+        navigateToTask(parentTask);
+      }
+    } else {
+      navigateToTask(task);
+    }
+    setShowSearch(false);  // Hide the search bar after selection
+  };
 
   const fetchTasks = useCallback(async (parentId = null) => {
     if (!isMounted.current) return;
@@ -1180,17 +1193,7 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
     }
   };
 
-  const handleSearchSelect = (task) => {
-    // Navigate to the task's parent if it has one, otherwise to the task itself
-    if (task.parent_id) {
-      const parentTask = allTasks.find(t => t.id === task.parent_id);
-      if (parentTask) {
-        navigateToTask(parentTask);
-      }
-    } else {
-      navigateToTask(task);
-    }
-  };
+
 
   const toggleTaskCompletion = async (task) => {
     setLoading(true);
@@ -1410,7 +1413,19 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
   return (
     <TooltipProvider>
     <div className={`p-4 md:p-8 ${colorPalette[theme].background} min-h-screen`}>
-      <TaskSearch tasks={allTasks} onSelectTask={handleSearchSelect} theme={theme} />
+      <AnimatePresence>
+        {showSearch && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="mb-4"
+          >
+            <TaskSearch tasks={allTasks} onSelectTask={handleSearchSelect} theme={theme} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      
       {error && (
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -1454,6 +1469,30 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
                 <Button
                   variant="outline"
                   className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+                  onClick={() => setShowOverview(!showOverview)}
+                >
+                  <List size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Toggle Overview</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
+                  onClick={() => setShowSearch(!showSearch)}
+                >
+                  <Search size={16} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Toggle Search</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}
                   onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
                 >
                   {theme === 'light' ? <Moon size={16} /> : <Sun size={16} />}
@@ -1487,17 +1526,6 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
                     variant="ghost"
                     className={`w-full text-left ${colorPalette[theme].text}`}
                     onClick={() => {
-                      setShowOverview(!showOverview);
-                      setShowAnalytics(false);
-                      setMenuOpen(false);
-                    }}
-                  >
-                    {showOverview ? 'Hide Overview' : 'Show Overview'}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    className={`w-full text-left ${colorPalette[theme].text}`}
-                    onClick={() => {
                       setShowAnalytics(!showAnalytics);
                       setShowOverview(false);
                       setMenuOpen(false);
@@ -1520,96 +1548,60 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
       </div>
       
       <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} theme={theme} />
-        <AnimatePresence>
-          {addingTask && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
-            >
-              <Input 
-                value={newTaskTitle}
-                onChange={(e) => setNewTaskTitle(e.target.value)}
-                placeholder="Enter new task title"
-                className={`mr-2 flex-grow ${colorPalette[theme].text}`}
-              />
-              <Button onClick={addNewTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Add</Button>
-              <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">
-                <X size={16} />
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {editingTask && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
-            >
-              <Input 
-                value={editedTaskTitle}
-                onChange={(e) => setEditedTaskTitle(e.target.value)}
-                placeholder="Edit task title"
-                className={`mr-2 flex-grow ${colorPalette[theme].text}`}
-              />
-              <Button onClick={saveEditedTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Save</Button>
-              <Button variant="ghost" onClick={() => setEditingTask(null)} className="ml-2">
-                <X size={16} />
-              </Button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <AnimatePresence>
-          {showOverview ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-            >
-              <Overview tasks={allTasks} onNavigate={navigateToTask} theme={theme} />
-            </motion.div>
-          ) : showAnalytics ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-            >
-              <TaskAnalytics tasks={allTasks} theme={theme} />
-              <TaskInsights tasks={allTasks} theme={theme} />
-              <StreakTracker tasks={allTasks} theme={theme} />
-              <ProductivityTips theme={theme} />
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-            >
-              <EisenhowerMatrix 
-          tasks={currentLevel.tasks} 
-          onOpenMatrix={navigateToTask}
-          onAddTask={startAddingTask}
-          onEditTask={startEditingTask}
-          onDeleteTask={startDeletingTask}
-          onToggleComplete={toggleTaskCompletion}
-          onOpenDetails={handleOpenDetails}
-          theme={theme}
-        />
-        <TaskDetailsModal
-          isOpen={selectedTask !== null}
-          onClose={handleCloseDetails}
-          task={selectedTask}
-          onEditNote={editNote}
-          onToggleComplete={toggleTaskCompletion}
-          theme={theme}
-          colorPalette={colorPalette}
-        />
-            </motion.div>
-          )}
-        </AnimatePresence>
+      
+      <AnimatePresence>
+        {showOverview ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+          >
+            <Overview 
+              tasks={allTasks} 
+              onNavigate={navigateToTask} 
+              theme={theme} 
+              onToggleComplete={toggleTaskCompletion}
+            />
+          </motion.div>
+        ) : showAnalytics ? (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+          >
+            <TaskAnalytics tasks={allTasks} theme={theme} />
+            <TaskInsights tasks={allTasks} theme={theme} />
+            <StreakTracker tasks={allTasks} theme={theme} />
+            <ProductivityTips theme={theme} />
+          </motion.div>
+        ) : (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+          >
+            <EisenhowerMatrix 
+              tasks={currentLevel.tasks} 
+              onOpenMatrix={navigateToTask}
+              onAddTask={startAddingTask}
+              onEditTask={startEditingTask}
+              onDeleteTask={startDeletingTask}
+              onToggleComplete={toggleTaskCompletion}
+              onOpenDetails={handleOpenDetails}
+              theme={theme}
+            />
+            <TaskDetailsModal
+              isOpen={selectedTask !== null}
+              onClose={handleCloseDetails}
+              task={selectedTask}
+              onEditNote={editNote}
+              onToggleComplete={toggleTaskCompletion}
+              theme={theme}
+              colorPalette={colorPalette}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
         <AlertDialog open={deletingTask !== null} onOpenChange={() => setDeletingTask(null)}>
           <AlertDialogContent className={`${colorPalette[theme].card} ${colorPalette[theme].text}`}>
             <AlertDialogHeader>
