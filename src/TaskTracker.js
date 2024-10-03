@@ -26,6 +26,7 @@ import { Progress } from "./components/ui/progress";
 import { supabase } from './supabaseClient';
 import confetti from 'canvas-confetti';
 import TaskDetailsModal from './TaskDetailsModal';
+import FloatingQuadrantInput from './FloatingActionButton';
 
 const useColorTheme = () => {
   const [theme, setTheme] = useState('light');
@@ -133,7 +134,7 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, 
           <Button
             variant="ghost"
             size="sm"
-            className="mr-3 p-0"
+            className="mr-3 p-0 flex-shrink-0"
             onClick={(e) => {
               e.stopPropagation();
               onToggleComplete(task);
@@ -146,10 +147,10 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, 
             )}
           </Button>
         </Tooltip>
-        <span className={`flex-grow truncate max-w-[150px] sm:max-w-[200px] md:max-w-[250px] ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
+        <span className={`flex-grow mr-2 ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
           {task.title}
         </span>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-row justify-end items-center space-x-2 flex-shrink-0">
           <Tooltip content="Open subtasks">
             <Button 
               variant="ghost" 
@@ -209,13 +210,13 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, 
 
 const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, onEditNote, onOpenDetails, theme, color }) => {
   return (
-    <Card className={`h-full overflow-hidden shadow-lg bg-gradient-to-br ${color} ${theme === 'dark' ? 'bg-opacity-20' : ''}`}>
-      <CardHeader className={`font-semibold flex justify-between items-center p-4 ${colorPalette[theme].text}`}>
+    <Card className={`h-full overflow-hidden shadow-lg bg-gradient-to-br ${color} ${theme === 'dark' ? 'bg-opacity-0' : ''}`}>
+      <CardHeader className={`font-semibold flex justify-between items-start p-4 black`}>
         <div className="flex items-center">
           {QuadrantIcons[title]}
           <span className="text-lg font-bold">{title}</span>
         </div>
-        <Tooltip content="Add new task">
+        {/* <Tooltip content="Add new task">
           <Button 
             variant="outline" 
             size="sm" 
@@ -225,7 +226,7 @@ const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDel
             <PlusCircle size={16} className="mr-2" />
             Add Task
           </Button>
-        </Tooltip>
+        </Tooltip> */}
       </CardHeader>
       <CardContent className="p-4 max-h-[calc(50vh-100px)] overflow-y-auto">
         <AnimatePresence>
@@ -1013,21 +1014,21 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
     setNewTaskQuadrant(quadrant);
   };
 
-  const addNewTask = async () => {
-    if (newTaskTitle.trim() === '') return;
+  const addNewTask = async (title, quadrant) => {
+    if (title.trim() === '') return;
   
     const [urgent, important] = {
       'Urgent & Important': [true, true],
       'Urgent & Not Important': [true, false],
       'Not Urgent & Important': [false, true],
       'Not Urgent & Not Important': [false, false],
-    }[newTaskQuadrant] || [false, false];
+    }[quadrant];
   
     setLoading(true);
     setError(null);
     try {
       const newTask = {
-        title: newTaskTitle,
+        title: title,
         urgent,
         important,
         parent_id: currentLevel.id === null ? null : currentLevel.id,
@@ -1052,19 +1053,12 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
           ...updated[currentLevelIndex],
           tasks: [...(updated[currentLevelIndex].tasks || []), data]
         };
-        console.log('Updated task hierarchy:', updated);
         return updated;
       });
   
-      setNewTaskTitle('');
-      setAddingTask(false);
-      setNewTaskQuadrant(null);
-  
-      // Fetch tasks again to ensure consistency
       await fetchTasks(currentLevel.id === null ? null : currentLevel.id);
       await fetchAllTasks();
-
-      // Show success animation
+  
       triggerSuccessAnimation();
     } catch (error) {
       console.error('Error adding task:', error);
@@ -1548,6 +1542,34 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
       </div>
       
       <Breadcrumb hierarchy={taskHierarchy} onNavigate={navigateToBreadcrumb} theme={theme} />
+      {/* <AnimatePresence>
+        {addingTask && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`mb-6 flex items-center ${colorPalette[theme].card} p-4 rounded-lg shadow-md`}
+          >
+            <Input 
+              value={newTaskTitle}
+              onChange={(e) => setNewTaskTitle(e.target.value)}
+              placeholder="Enter new task title"
+              className={`mr-2 flex-grow ${colorPalette[theme].text}`}
+            />
+            <Button onClick={addNewTask} className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText} transition-colors shadow-md`}>Add</Button>
+            <Button variant="ghost" onClick={() => setAddingTask(false)} className="ml-2">
+              <X size={16} />
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence> */}
+
+<FloatingQuadrantInput 
+  onAddTask={addNewTask}
+  theme={theme}
+  colorPalette={colorPalette}
+/>
+
       
       <AnimatePresence>
         {showOverview ? (
