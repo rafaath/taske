@@ -5,7 +5,7 @@ import {
   PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, 
   CheckCircle, Circle, ChevronDown, X, Menu, Sun, Moon,
   Clock, Target, Zap, Coffee, Calendar, BarChart, Settings,
-  ArrowRight, Gift, Home, StickyNote
+  ArrowRight, Gift, Home, StickyNote, AlertCircle, Badge
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
@@ -283,82 +283,298 @@ const EisenhowerMatrix = ({ tasks, onOpenMatrix, onAddTask, onEditTask, onDelete
   );
 };
 
-const OverviewTask = ({ task, level, onNavigate, theme }) => {
-  const [expanded, setExpanded] = useState(false);
 
+const quadrantConfig = {
+  'Urgent & Important': { icon: Zap, color: 'text-red-500', bgColor: 'bg-red-100', tooltip: 'Urgent & Important' },
+  'Urgent & Not Important': { icon: Clock, color: 'text-yellow-500', bgColor: 'bg-yellow-100', tooltip: 'Urgent & Not Important' },
+  'Not Urgent & Important': { icon: Target, color: 'text-green-500', bgColor: 'bg-green-100', tooltip: 'Not Urgent & Important' },
+  'Not Urgent & Not Important': { icon: Coffee, color: 'text-blue-500', bgColor: 'bg-blue-100', tooltip: 'Not Urgent & Not Important' },
+};
+
+const getQuadrantConfig = (urgent, important) => {
+  if (urgent && important) return quadrantConfig['Urgent & Important'];
+  if (urgent && !important) return quadrantConfig['Urgent & Not Important'];
+  if (!urgent && important) return quadrantConfig['Not Urgent & Important'];
+  return quadrantConfig['Not Urgent & Not Important'];
+};
+
+const TaskIcon = ({ task, theme, isCompleted, onClick, isFiltered }) => {
+  const { icon: QuadrantIcon, color, bgColor, tooltip } = getQuadrantConfig(task.urgent, task.important);
   return (
-    <motion.div 
-      className={`ml-${level * 4}`}
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: level * 0.1 }}
-    >
-      <div 
-        className={`flex items-center py-2 px-4 ${colorPalette[theme].hover} rounded transition-colors cursor-pointer`}
-        onClick={() => onNavigate(task)}
-      >
-        {task.subtasks && task.subtasks.length > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mr-2 p-0"
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div 
+            className={`p-1 rounded-full ${bgColor} ${theme === 'dark' ? 'opacity-80' : ''} mr-2 cursor-pointer transition-transform hover:scale-110 ${isFiltered ? '' : 'opacity-40'}`}
             onClick={(e) => {
               e.stopPropagation();
-              setExpanded(!expanded);
+              onClick();
             }}
           >
-            <ChevronDown
-              size={16}
-              className={`transition-transform ${expanded ? 'transform rotate-180' : ''}`}
-            />
-          </Button>
-        )}
-        <span className={`${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
-          {task.title}
-        </span>
-      </div>
-      {expanded && task.subtasks && task.subtasks.length > 0 && (
-        <div>
-          {task.subtasks.map(subtask => (
-            <OverviewTask
-              key={subtask.id}
-              task={subtask}
-              level={level + 1}
-              onNavigate={onNavigate}
-              theme={theme}
-            />
-          ))}
-        </div>
-      )}
-    </motion.div>
+            {isCompleted ? (
+              <CheckCircle size={16} className="text-green-500" />
+            ) : (
+              <QuadrantIcon size={16} className={color} />
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="right">
+          <p>{isCompleted ? 'Completed' : tooltip}</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
-const Overview = ({ tasks, onNavigate, theme }) => {
+const OverviewTask = ({ task, level, onNavigate, theme, onToggleComplete, activeFilters, expandAll, onExpandToggle }) => {
+  const [expanded, setExpanded] = useState(expandAll);
+  const dueDate = useMemo(() => task.due_date ? new Date(task.due_date) : null, [task.due_date]);
+  const isOverdue = useMemo(() => dueDate && dueDate < new Date() && !task.completed, [dueDate, task.completed]);
+  const quadrant = getQuadrantConfig(task.urgent, task.important).tooltip;
+  const isFiltered = activeFilters.length === 0 || activeFilters.includes(quadrant);
+
+  const toggleExpanded = (e) => {
+    e.stopPropagation();
+    setExpanded(prev => !prev);
+    onExpandToggle(task.id, !expanded);
+  };
+
+  // Update expanded state when expandAll changes
+  React.useEffect(() => {
+    setExpanded(expandAll);
+  }, [expandAll]);
+
+  const hasVisibleSubtasks = task.subtasks && task.subtasks.some(subtask => 
+    activeFilters.length === 0 || activeFilters.includes(getQuadrantConfig(subtask.urgent, subtask.important).tooltip)
+  );
+
+  return (
+    <AnimatePresence>
+      <motion.div 
+        className={`ml-${level * 4}`}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: level * 0.1 }}
+      >
+        <div 
+          className={`flex items-center py-2 px-4 ${colorPalette[theme].hover} rounded transition-colors cursor-pointer ${isOverdue ? 'border-l-4 border-red-500' : ''} ${isFiltered ? '' : 'opacity-50'}`}
+          onClick={() => onNavigate(task)}
+        >
+          {(task.subtasks && task.subtasks.length > 0) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mr-2 p-0"
+              onClick={toggleExpanded}
+            >
+              <ChevronDown
+                size={16}
+                className={`transition-transform ${expanded ? 'transform rotate-180' : ''}`}
+              />
+            </Button>
+          )}
+          <TaskIcon 
+            task={task} 
+            theme={theme} 
+            isCompleted={task.completed}
+            onClick={() => onToggleComplete(task)}
+            isFiltered={isFiltered}
+          />
+          <span className={`flex-grow ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
+            {task.title}
+          </span>
+          {dueDate && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className={`flex items-center ${isOverdue ? 'text-red-500' : colorPalette[theme].text}`}>
+                    {isOverdue ? <AlertCircle size={16} /> : <Calendar size={16} />}
+                    <span className="ml-1 text-xs">{dueDate.toLocaleDateString()}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent>{isOverdue ? 'Overdue' : 'Due Date'}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+        {expanded && task.subtasks && task.subtasks.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            {task.subtasks.map(subtask => (
+              <OverviewTask
+                key={subtask.id}
+                task={subtask}
+                level={level + 1}
+                onNavigate={onNavigate}
+                theme={theme}
+                onToggleComplete={onToggleComplete}
+                activeFilters={activeFilters}
+                expandAll={expandAll}
+                onExpandToggle={onExpandToggle}
+              />
+            ))}
+          </motion.div>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+const TaskProgress = ({ tasks, theme }) => {
+  const completedTasks = tasks.filter(task => task.completed).length;
+  const totalTasks = tasks.length;
+  const progressPercentage = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+  return (
+    <div className="mt-6 mb-4">
+      <div className="flex justify-between mb-2">
+        <span className={`text-sm font-medium ${colorPalette[theme].text}`}>Overall Progress</span>
+        <span className={`text-sm font-medium ${colorPalette[theme].text}`}>{`${completedTasks}/${totalTasks} tasks`}</span>
+      </div>
+      <Progress value={progressPercentage} className="w-full h-2" />
+    </div>
+  );
+};
+
+const QuadrantFilter = ({ activeFilters, onToggleFilter, theme }) => {
+  return (
+    <div className="flex space-x-2 mb-4">
+      {Object.entries(quadrantConfig).map(([key, { icon: Icon, color, bgColor, tooltip }]) => (
+        <TooltipProvider key={key}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className={`p-1 ${activeFilters.includes(key) ? bgColor : 'bg-gray-100'} ${theme === 'dark' ? 'opacity-80' : ''} transition-all duration-300 ease-in-out`}
+                onClick={() => onToggleFilter(key)}
+              >
+                <Icon size={16} className={activeFilters.includes(key) ? color : 'text-gray-400'} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              <p>{tooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ))}
+    </div>
+  );
+};
+
+const Overview = ({ tasks, onNavigate, theme, onToggleComplete }) => {
+  const [quadrantFilters, setQuadrantFilters] = useState([]);
+  const [expandAll, setExpandAll] = useState(false);
+  const [expandedTasks, setExpandedTasks] = useState({});
+
+  const toggleQuadrantFilter = (quadrant) => {
+    setQuadrantFilters(prev => 
+      prev.includes(quadrant) 
+        ? prev.filter(q => q !== quadrant)
+        : [...prev, quadrant]
+    );
+  };
+
+  const toggleExpandAll = () => {
+    setExpandAll(prev => !prev);
+    // Reset individual task expansion states
+    setExpandedTasks({});
+  };
+
+  const handleExpandToggle = (taskId, isExpanded) => {
+    setExpandedTasks(prev => ({
+      ...prev,
+      [taskId]: isExpanded
+    }));
+  };
+
+  const filterTasks = useCallback((tasksToFilter) => {
+    return tasksToFilter.map(task => {
+      const taskQuadrant = getQuadrantConfig(task.urgent, task.important).tooltip;
+      const isVisible = quadrantFilters.length === 0 || quadrantFilters.includes(taskQuadrant);
+      
+      let filteredSubtasks = [];
+      if (task.subtasks && task.subtasks.length > 0) {
+        filteredSubtasks = filterTasks(task.subtasks);
+      }
+
+      return {
+        ...task,
+        isVisible,
+        subtasks: filteredSubtasks
+      };
+    });
+  }, [quadrantFilters]);
+
+  const filteredTasks = useMemo(() => filterTasks(tasks), [filterTasks, tasks]);
+
   return (
     <Card className={`mt-6 shadow-lg ${colorPalette[theme].card}`}>
-      <CardHeader>
-        <h2 className={`text-2xl font-bold ${colorPalette[theme].text}`}>Task Overview</h2>
+      <CardHeader className="flex flex-col space-y-1.5 pb-6">
+        <div className="flex justify-between items-center">
+          <h2 className={`text-2xl font-bold ${colorPalette[theme].text}`}>Task Overview</h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleExpandAll}
+            className={`${colorPalette[theme].button} ${colorPalette[theme].buttonText}`}
+          >
+            {expandAll ? (
+              <>
+                <ChevronLeft className="mr-2" size={16} />
+                Collapse All
+              </>
+            ) : (
+              <>
+                Expand All
+                <ChevronRight className="ml-2" size={16} />
+              </>
+            )}
+          </Button>
+        </div>
+        <QuadrantFilter 
+          activeFilters={quadrantFilters}
+          onToggleFilter={toggleQuadrantFilter}
+          theme={theme}
+        />
+        <TaskProgress tasks={filteredTasks} theme={theme} />
       </CardHeader>
       <CardContent>
-        <motion.div initial="hidden" animate="visible" variants={{
-          hidden: { opacity: 0 },
-          visible: {
-            opacity: 1,
-            transition: {
-              staggerChildren: 0.1
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={{
+            hidden: { opacity: 0 },
+            visible: {
+              opacity: 1,
+              transition: {
+                staggerChildren: 0.1
+              }
             }
-          }
-        }}>
-          {tasks.map(task => (
-            <OverviewTask
-              key={task.id}
-              task={task}
-              level={0}
-              onNavigate={onNavigate}
-              theme={theme}
-            />
-          ))}
+          }}
+        >
+          {filteredTasks.length > 0 ? (
+            filteredTasks.map(task => (
+              <OverviewTask
+                key={task.id}
+                task={task}
+                level={0}
+                onNavigate={onNavigate}
+                theme={theme}
+                onToggleComplete={onToggleComplete}
+                activeFilters={quadrantFilters}
+                expandAll={expandAll || expandedTasks[task.id]}
+                onExpandToggle={handleExpandToggle}
+              />
+            ))
+          ) : (
+            <div className={`text-center py-8 ${colorPalette[theme].text}`}>
+              No tasks match the current filters.
+            </div>
+          )}
         </motion.div>
       </CardContent>
     </Card>
