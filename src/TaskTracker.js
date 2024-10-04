@@ -5,7 +5,8 @@ import {
   PlusCircle, ChevronLeft, Edit, Trash2, ChevronRight, 
   CheckCircle, Circle, ChevronDown, X, Menu, Sun, Moon,
   Clock, Target, Zap, Coffee, Calendar, BarChart, Settings,
-  ArrowRight, Gift, Home, StickyNote, AlertCircle, Badge, List, Search
+  ArrowRight, Gift, Home, StickyNote, AlertCircle, Badge,
+  List, Search, CheckSquare, Square, AlertTriangle, Bookmark
 } from 'lucide-react';
 import { Card, CardHeader, CardContent } from './components/ui/card';
 import { Button } from './components/ui/button';
@@ -112,14 +113,34 @@ const Breadcrumb = ({ hierarchy, onNavigate, theme }) => (
 const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, onOpenDetails, theme }) => {
   const controls = useAnimation();
 
-  React.useEffect(() => {
+  useEffect(() => {
     controls.start({ opacity: 1, y: 0 });
   }, [controls]);
 
-  if (!task || !task.id) return null;
+  if (!task || !task.id) {
+    console.error('Invalid task:', task);
+    return null;
+  }
 
   const hasNote = task.notes && task.notes.trim().length > 0;
-  
+  const totalTasks = task.total_tasks || 0;
+  const completedTasks = task.completed_tasks || 0;
+  const urgentImportant = task.urgent_important || 0;
+  const urgentNotImportant = task.urgent_not_important || 0;
+  const notUrgentImportant = task.not_urgent_important || 0;
+  const notUrgentNotImportant = task.not_urgent_not_important || 0;
+
+  const StatBadge = ({ icon: Icon, count, label, color }) => (
+    count > 0 ? (
+      <Tooltip content={label}>
+        <div className={`flex items-center space-x-1 ${color} rounded px-2 py-1 text-xs`}>
+          <Icon size={12} />
+          <span>{count}</span>
+        </div>
+      </Tooltip>
+    ) : null
+  );
+
   return (
     <motion.div 
       layout
@@ -151,6 +172,17 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, 
           {task.title}
         </span>
         <div className="flex flex-row justify-end items-center space-x-2 flex-shrink-0">
+          <StatBadge icon={CheckSquare} count={completedTasks} label="Completed Tasks" color="bg-green-100 text-green-800" />
+          <StatBadge icon={Square} count={totalTasks - completedTasks} label="Remaining Tasks" color="bg-gray-100 text-gray-800" />
+          <StatBadge icon={AlertTriangle} count={urgentImportant} label="Urgent & Important" color="bg-red-100 text-red-800" />
+          <StatBadge icon={Clock} count={urgentNotImportant} label="Urgent & Not Important" color="bg-yellow-100 text-yellow-800" />
+          <StatBadge icon={Bookmark} count={notUrgentImportant} label="Not Urgent & Important" color="bg-blue-100 text-blue-800" />
+          <StatBadge icon={Coffee} count={notUrgentNotImportant} label="Not Urgent & Not Important" color="bg-purple-100 text-purple-800" />
+          {/* {hasNote && (
+            <Tooltip content="This task has notes">
+              <StickyNote size={16} className="text-yellow-500" />
+            </Tooltip>
+          )} */}
           <Tooltip content="Open subtasks">
             <Button 
               variant="ghost" 
@@ -857,11 +889,19 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
 
   const fetchTasks = useCallback(async (parentId = null) => {
     if (!isMounted.current) return;
-    console.log('Fetching tasks...');
+    console.log('Fetching tasks...', 'Parent ID:', parentId);
     try {
       let query = supabase
         .from('tasks')
-        .select('*')
+        .select(`
+          *,
+          subtasks:tasks!parent_id(
+            id,
+            completed,
+            urgent,
+            important
+          )
+        `)
         .order('created_at', { ascending: true });
   
       if (parentId === null) {
@@ -874,15 +914,29 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
   
       if (error) throw error;
   
-      console.log('Fetched tasks:', data);
+      // Process the data to calculate counts
+      const processedData = data.map(task => {
+        const subtasks = task.subtasks || [];
+        return {
+          ...task,
+          total_tasks: subtasks.length,
+          completed_tasks: subtasks.filter(t => t.completed).length,
+          urgent_important: subtasks.filter(t => t.urgent && t.important).length,
+          urgent_not_important: subtasks.filter(t => t.urgent && !t.important).length,
+          not_urgent_important: subtasks.filter(t => !t.urgent && t.important).length,
+          not_urgent_not_important: subtasks.filter(t => !t.urgent && !t.important).length
+        };
+      });
+  
+      console.log('Fetched tasks:', processedData);
   
       setTaskHierarchy(prev => {
         const updated = [...prev];
         const currentLevelIndex = updated.length - 1;
-        if (JSON.stringify(updated[currentLevelIndex].tasks) !== JSON.stringify(data)) {
+        if (JSON.stringify(updated[currentLevelIndex].tasks) !== JSON.stringify(processedData)) {
           updated[currentLevelIndex] = {
             ...updated[currentLevelIndex],
-            tasks: data || []
+            tasks: processedData || []
           };
           return updated;
         }
@@ -894,7 +948,18 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
       onError(error);
     }
   }, [onError]);
-
+  
+  // Add this function to your component to log the current state
+  const logCurrentState = () => {
+    console.log('Current Task Hierarchy:', taskHierarchy);
+    console.log('Current Level Tasks:', currentLevel.tasks);
+  };
+  
+  // Call this function in useEffect or after state updates
+  useEffect(() => {
+    logCurrentState();
+  }, [taskHierarchy]);
+  
   const fetchAllTasks = useCallback(async () => {
     if (!isMounted.current) return;
     console.log('Fetching all tasks...');
