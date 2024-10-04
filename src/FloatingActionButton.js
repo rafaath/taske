@@ -1,115 +1,105 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Zap, Clock, Target, Coffee, ChevronRight } from 'lucide-react';
-import { Input } from './components/ui/input';
-import { Button } from './components/ui/button';
+import { Plus, Check, X } from 'lucide-react';
 
 const AppleInspiredTaskInput = ({ onAddTask, theme }) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
+  const [isOpen, setIsOpen] = useState(false);
+  const [taskTitle, setTaskTitle] = useState('');
   const [selectedQuadrant, setSelectedQuadrant] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const inputRef = useRef(null);
 
   const quadrants = [
-    { name: 'Urgent & Important', color: 'bg-red-500', icon: Zap },
-    { name: 'Urgent & Not Important', color: 'bg-yellow-500', icon: Clock },
-    { name: 'Not Urgent & Important', color: 'bg-green-500', icon: Target },
-    { name: 'Not Urgent & Not Important', color: 'bg-blue-500', icon: Coffee },
+    { name: 'Urgent & Important', color: 'bg-red-500' },
+    { name: 'Urgent & Not Important', color: 'bg-yellow-500' },
+    { name: 'Not Urgent & Important', color: 'bg-green-500' },
+    { name: 'Not Urgent & Not Important', color: 'bg-blue-500' }
   ];
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (newTaskTitle.trim() && selectedQuadrant) {
-      setIsSubmitting(true);
-      await onAddTask(newTaskTitle, selectedQuadrant);
-      setIsSubmitting(false);
-      setNewTaskTitle('');
+  useEffect(() => {
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  const handleAddTask = () => {
+    if (taskTitle.trim() && selectedQuadrant) {
+      onAddTask(taskTitle, selectedQuadrant);
+      setTaskTitle('');
       setSelectedQuadrant(null);
-      setIsExpanded(false);
+      setIsOpen(false);
     }
   };
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (isExpanded && !event.target.closest('.floating-input-container')) {
-        setIsExpanded(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isExpanded]);
-
   return (
-    <div className="fixed bottom-6 right-6 z-50 floating-input-container">
+    <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
       <AnimatePresence>
-        {isExpanded ? (
+        {isOpen && (
           <motion.div
-            initial={{ opacity: 0, y: 50, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 50, scale: 0.9 }}
-            className={`p-6 rounded-3xl shadow-2xl ${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} border border-gray-200 w-96`}
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className={`bg-${theme === 'dark' ? 'gray-800' : 'white'} rounded-2xl shadow-2xl p-6 w-full max-w-lg mx-4 pointer-events-auto`}
           >
-            <button
-              onClick={() => setIsExpanded(false)}
-              className={`absolute top-4 right-4 ${theme === 'dark' ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700'} transition-colors duration-200`}
+            <motion.input
+              ref={inputRef}
+              type="text"
+              value={taskTitle}
+              onChange={(e) => setTaskTitle(e.target.value)}
+              placeholder="What do you want to accomplish?"
+              className={`w-full text-2xl font-light mb-6 bg-transparent border-none outline-none text-${theme === 'dark' ? 'white' : 'gray-800'}`}
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.1 }}
+            />
+            <motion.div 
+              className="flex justify-between mb-6"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.2 }}
             >
-              <X size={20} />
-            </button>
-            <h3 className={`text-xl font-semibold mb-4 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>New Task</h3>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="relative">
-                <Input
-                  type="text"
-                  value={newTaskTitle}
-                  onChange={(e) => setNewTaskTitle(e.target.value)}
-                  placeholder="What do you need to do?"
-                  className={`w-full border-0 border-b-2 ${theme === 'dark' ? 'bg-gray-700 text-white border-gray-600' : 'bg-gray-50 text-gray-800 border-gray-300'} focus:ring-0 focus:border-blue-500 transition-all duration-300 text-lg p-3 pl-4 rounded-xl`}
-                  autoFocus
+              {quadrants.map((quadrant) => (
+                <motion.button
+                  key={quadrant.name}
+                  onClick={() => setSelectedQuadrant(quadrant.name)}
+                  className={`w-12 h-12 rounded-full ${quadrant.color} ${
+                    selectedQuadrant === quadrant.name ? 'ring-4 ring-offset-4' : ''
+                  } transition-all duration-300 ease-in-out transform hover:scale-110`}
+                  whileTap={{ scale: 0.95 }}
                 />
-                {newTaskTitle && (
-                  <ChevronRight size={20} className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`} />
-                )}
-              </div>
-              <div className="flex justify-between items-center">
-                {quadrants.map((quadrant) => {
-                  const Icon = quadrant.icon;
-                  return (
-                    <motion.button
-                      key={quadrant.name}
-                      type="button"
-                      onClick={() => setSelectedQuadrant(quadrant.name)}
-                      className={`w-12 h-12 rounded-2xl ${quadrant.color} flex items-center justify-center ${selectedQuadrant === quadrant.name ? 'ring-4 ring-offset-2 ring-blue-500' : ''} transition-all duration-300 ease-in-out`}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                    >
-                      <Icon size={24} color="white" />
-                    </motion.button>
-                  );
-                })}
-              </div>
-              <Button
-                type="submit"
-                disabled={!selectedQuadrant || !newTaskTitle.trim() || isSubmitting}
-                className={`w-full py-3 px-4 ${theme === 'dark' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-blue-500 hover:bg-blue-600'} text-white rounded-xl transition-all duration-300 ease-in-out transform hover:scale-105 ${(!selectedQuadrant || !newTaskTitle.trim() || isSubmitting) ? 'opacity-50 cursor-not-allowed' : ''}`}
+              ))}
+            </motion.div>
+            <motion.div 
+              className="flex justify-end"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              <button
+                onClick={() => setIsOpen(false)}
+                className={`mr-4 text-${theme === 'dark' ? 'gray-300' : 'gray-500'} hover:text-${theme === 'dark' ? 'white' : 'gray-800'}`}
               >
-                {isSubmitting ? 'Adding...' : 'Add Task'}
-              </Button>
-            </form>
+                <X size={24} />
+              </button>
+              <button
+                onClick={handleAddTask}
+                disabled={!taskTitle.trim() || !selectedQuadrant}
+                className={`bg-${theme === 'dark' ? 'white' : 'gray-800'} text-${theme === 'dark' ? 'gray-800' : 'white'} rounded-full p-2 disabled:opacity-50 transition-all duration-300 ease-in-out transform hover:scale-105`}
+              >
+                <Check size={24} />
+              </button>
+            </motion.div>
           </motion.div>
-        ) : (
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            className={`p-4 rounded-full shadow-lg ${theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'} transition-all duration-300`}
-            onClick={() => setIsExpanded(true)}
-          >
-            <Plus size={24} />
-          </motion.button>
         )}
       </AnimatePresence>
+      <motion.button
+        onClick={() => setIsOpen(true)}
+        className={`absolute bottom-8 right-8 bg-${theme === 'dark' ? 'white' : 'gray-800'} text-${theme === 'dark' ? 'gray-800' : 'white'} rounded-full p-4 shadow-lg pointer-events-auto transition-all duration-300 ease-in-out transform hover:scale-110`}
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+      >
+        <Plus size={32} />
+      </motion.button>
     </div>
   );
 };
