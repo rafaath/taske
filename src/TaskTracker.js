@@ -21,6 +21,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "./components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "./components/ui/dialog";
+import { Label } from "./components/ui/label";
+import { Switch } from "./components/ui/switch";
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from "./components/ui/tooltip";
 import { Textarea } from './components/ui/textarea';
 import { Progress } from "./components/ui/progress";
@@ -110,8 +121,11 @@ const Breadcrumb = ({ hierarchy, onNavigate, theme }) => (
   </motion.div>
 );
 
+
+
 const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, onOpenDetails, theme }) => {
   const controls = useAnimation();
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   useEffect(() => {
     controls.start({ opacity: 1, y: 0 });
@@ -141,104 +155,137 @@ const Task = ({ task, onOpenMatrix, onEditTask, onDeleteTask, onToggleComplete, 
     ) : null
   );
 
+  const handleEditClick = (e) => {
+    e.stopPropagation();
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = async (editedTask) => {
+    try {
+      await onEditTask(editedTask);
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error('Error saving edited task:', error);
+    }
+  };
+
+  const statBadges = [
+    { icon: CheckSquare, count: completedTasks, label: "Completed Tasks", color: "bg-green-200 text-green-800" },
+    { icon: Square, count: totalTasks - completedTasks, label: "Remaining Tasks", color: "bg-gray-200 text-gray-800" },
+    { icon: AlertTriangle, count: urgentImportant, label: "Urgent & Important", color: "bg-red-200 text-red-800" },
+    { icon: Clock, count: urgentNotImportant, label: "Urgent & Not Important", color: "bg-yellow-200 text-yellow-800" },
+    { icon: Bookmark, count: notUrgentImportant, label: "Not Urgent & Important", color: "bg-blue-200 text-blue-800" },
+    { icon: Coffee, count: notUrgentNotImportant, label: "Not Urgent & Not Important", color: "bg-purple-200 text-purple-800" }
+  ];
+
+  const visibleBadges = statBadges.filter(badge => badge.count > 0);
+
   return (
-    <motion.div 
-      layout
-      initial={{ opacity: 0, y: 20 }}
-      animate={controls}
-      exit={{ opacity: 0, y: -20 }}
-      className={`mb-3 rounded-lg ${colorPalette[theme].card} shadow-md hover:shadow-xl transition-all duration-300 ${task.completed ? 'opacity-60' : ''} cursor-pointer overflow-hidden`}
-      onClick={() => onOpenDetails(task)}
-    >
-      <div className="flex items-center p-4">
-        <Tooltip content={task.completed ? "Mark as incomplete" : "Mark as complete"}>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="mr-3 p-0 flex-shrink-0"
-            onClick={(e) => {
-              e.stopPropagation();
-              onToggleComplete(task);
-            }}
-          >
-            {task.completed ? (
-              <CheckCircle size={20} className="text-green-500" />
-            ) : (
-              <Circle size={20} className="text-gray-300" />
+    <>
+      <motion.div 
+        layout
+        initial={{ opacity: 0, y: 20 }}
+        animate={controls}
+        exit={{ opacity: 0, y: -20 }}
+        className={`mb-3 rounded-lg ${colorPalette[theme].card} shadow-md hover:shadow-xl transition-all duration-300 ${task.completed ? 'opacity-60' : ''} cursor-pointer overflow-hidden`}
+        onClick={() => onOpenDetails(task)}
+      >
+        <div className="flex items-center p-4">
+          <Tooltip content={task.completed ? "Mark as incomplete" : "Mark as complete"}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="mr-3 p-0 flex-shrink-0"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleComplete(task);
+              }}
+            >
+              {task.completed ? (
+                <CheckCircle size={20} className="text-green-500" />
+              ) : (
+                <Circle size={20} className="text-gray-300" />
+              )}
+            </Button>
+          </Tooltip>
+          <span className={`flex-grow mr-2 ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
+            {task.title}
+          </span>
+          <div className="flex flex-row justify-end items-center space-x-2 flex-shrink-0">
+            {hasNote && (
+              <Tooltip content="This task has notes">
+                <StickyNote size={16} className="text-yellow-500" />
+              </Tooltip>
             )}
-          </Button>
-        </Tooltip>
-        <span className={`flex-grow mr-2 ${task.completed ? 'line-through text-gray-500' : colorPalette[theme].text}`}>
-          {task.title}
-        </span>
-        <div className="flex flex-row justify-end items-center space-x-2 flex-shrink-0">
-          <StatBadge icon={CheckSquare} count={completedTasks} label="Completed Tasks" color="bg-green-100 text-green-800" />
-          <StatBadge icon={Square} count={totalTasks - completedTasks} label="Remaining Tasks" color="bg-gray-100 text-gray-800" />
-          <StatBadge icon={AlertTriangle} count={urgentImportant} label="Urgent & Important" color="bg-red-100 text-red-800" />
-          <StatBadge icon={Clock} count={urgentNotImportant} label="Urgent & Not Important" color="bg-yellow-100 text-yellow-800" />
-          <StatBadge icon={Bookmark} count={notUrgentImportant} label="Not Urgent & Important" color="bg-blue-100 text-blue-800" />
-          <StatBadge icon={Coffee} count={notUrgentNotImportant} label="Not Urgent & Not Important" color="bg-purple-100 text-purple-800" />
-          {/* {hasNote && (
-            <Tooltip content="This task has notes">
-              <StickyNote size={16} className="text-yellow-500" />
+            <Tooltip content="Open subtasks">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className={`text-indigo-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onOpenMatrix(task);
+                }}
+              >
+                <ChevronRight size={16} />
+              </Button>
             </Tooltip>
-          )} */}
-          <Tooltip content="Open subtasks">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className={`text-indigo-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenMatrix(task);
-              }}
-            >
-              <ChevronRight size={16} />
-            </Button>
-          </Tooltip>
-          <Tooltip content="Edit task">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className={`text-yellow-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEditTask(task);
-              }}
-            >
-              <Edit size={16} />
-            </Button>
-          </Tooltip>
-          <Tooltip content="Delete task">
-            <Button 
-              variant="ghost" 
-              size="sm"
-              className={`text-red-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDeleteTask(task);
-              }}
-            >
-              <Trash2 size={16} />
-            </Button>
-          </Tooltip>
+            <Tooltip content="Edit task">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className={`text-yellow-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+                onClick={handleEditClick}
+              >
+                <Edit size={16} />
+              </Button>
+            </Tooltip>
+            <Tooltip content="Delete task">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className={`text-red-500 ${colorPalette[theme].hover} transition-colors hover:scale-110`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteTask(task);
+                }}
+              >
+                <Trash2 size={16} />
+              </Button>
+            </Tooltip>
+          </div>
         </div>
-      </div>
-      {hasNote && (
-        <div 
-          className={`px-4 py-2 text-sm ${
-            theme === 'dark' ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-600'
-          } border-t ${
-            theme === 'dark' ? 'border-gray-600' : 'border-gray-200'
-          } flex items-center space-x-2`}
-        >
-          <StickyNote size={14} className="flex-shrink-0 text-yellow-500" />
-          <p className="truncate">{task.notes}</p>
-        </div>
-      )}
-    </motion.div>
+        {visibleBadges.length > 0 && (
+          <div className={`px-4 py-2 text-sm ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'} border-t ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'} flex items-center space-x-2 flex-wrap`}>
+            {visibleBadges.map((badge, index) => (
+              <StatBadge key={index} icon={badge.icon} count={badge.count} label={badge.label} color={badge.color} />
+            ))}
+          </div>
+        )}
+        {hasNote && (
+          <div 
+            className={`px-4 py-2 text-sm ${
+              theme === 'dark' ? 'bg-gray-800 text-gray-300' : 'bg-gray-50 text-gray-600'
+            } border-t ${
+              theme === 'dark' ? 'border-gray-700' : 'border-gray-200'
+            } flex items-center space-x-2`}
+          >
+            <StickyNote size={14} className="flex-shrink-0 text-yellow-500" />
+            <p className="truncate">{task.notes}</p>
+          </div>
+        )}
+      </motion.div>
+      <EditTaskModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        task={task}
+        onSave={handleSaveEdit}
+        theme={theme}
+      />
+    </>
   );
 };
+
 
 const QuadrantCard = ({ title, tasks, onOpenMatrix, onAddTask, onEditTask, onDeleteTask, onToggleComplete, onEditNote, onOpenDetails, theme, color }) => {
   return (
@@ -497,6 +544,178 @@ const QuadrantFilter = ({ activeFilters, onToggleFilter, theme }) => {
     </div>
   );
 };
+
+
+const EditTaskModal = ({ isOpen, onClose, task, onSave, theme }) => {
+  const [editedTask, setEditedTask] = useState({
+    ...task,
+    notes: task?.notes || ''
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (task) {
+      setEditedTask({
+        ...task,
+        notes: task.notes || ''
+      });
+    }
+  }, [task]);
+
+  if (!isOpen || !task) return null;
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditedTask(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSwitchChange = (name) => {
+    setEditedTask(prev => ({ ...prev, [name]: !prev[name] }));
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await onSave(editedTask);
+      onClose();
+    } catch (error) {
+      console.error('Error saving task:', error);
+      // Handle error (e.g., show error message to user)
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const priorityColor = editedTask.urgent && editedTask.important ? 'text-red-500' :
+                        editedTask.urgent ? 'text-orange-500' :
+                        editedTask.important ? 'text-blue-500' : 'text-gray-400';
+
+  const colorPalette = theme === 'dark' ? {
+    background: 'bg-gray-900',
+    text: 'text-white',
+    secondaryText: 'text-gray-300',
+    noteBackground: 'bg-gray-800',
+    notePlaceholder: 'text-gray-500',
+    buttonHover: 'hover:bg-gray-700',
+  } : {
+    background: 'bg-white',
+    text: 'text-gray-900',
+    secondaryText: 'text-gray-600',
+    noteBackground: 'bg-gray-50',
+    notePlaceholder: 'text-gray-400',
+    buttonHover: 'hover:bg-gray-100',
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className={`${colorPalette.background} w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden`}
+        >
+          <div className="p-8">
+            <div className="flex justify-between items-center mb-6">
+              <Input
+                name="title"
+                value={editedTask.title}
+                onChange={handleInputChange}
+                className={`text-3xl font-bold ${colorPalette.text} bg-transparent border-none focus:ring-0 p-0`}
+              />
+              <Button
+                variant="ghost"
+                onClick={onClose}
+                className={`${colorPalette.secondaryText} ${colorPalette.buttonHover} transition-colors duration-200`}
+              >
+                <X size={24} />
+              </Button>
+            </div>
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <Tooltip content={`Set Priority`}>
+                  <div className={`flex items-center ${priorityColor} font-medium`}>
+                    {editedTask.urgent && editedTask.important ? (
+                      <AlertTriangle className="mr-2" size={20} />
+                    ) : editedTask.urgent ? (
+                      <Clock className="mr-2" size={20} />
+                    ) : editedTask.important ? (
+                      <Target className="mr-2" size={20} />
+                    ) : (
+                      <Clock className="mr-2" size={20} />
+                    )}
+                    <span>
+                      {editedTask.urgent && editedTask.important ? 'High Priority' :
+                       editedTask.urgent ? 'Urgent' :
+                       editedTask.important ? 'Important' : 'Normal Priority'}
+                    </span>
+                  </div>
+                </Tooltip>
+                <div className="flex space-x-4">
+                  <div className="flex items-center">
+                    <span className={`mr-2 ${colorPalette.secondaryText}`}>Urgent</span>
+                    <Switch
+                      checked={editedTask.urgent}
+                      onCheckedChange={() => handleSwitchChange('urgent')}
+                    />
+                  </div>
+                  <div className="flex items-center">
+                    <span className={`mr-2 ${colorPalette.secondaryText}`}>Important</span>
+                    <Switch
+                      checked={editedTask.important}
+                      onCheckedChange={() => handleSwitchChange('important')}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className={`flex items-center ${colorPalette.secondaryText}`}>
+                <Calendar className="mr-2" size={20} />
+                <span>Created: {new Date(editedTask.created_at).toLocaleString()}</span>
+              </div>
+              <div>
+                <div className="flex justify-between items-center mb-3">
+                  <h3 className={`font-semibold text-lg ${colorPalette.text}`}>Notes</h3>
+                </div>
+                <motion.div
+                  initial={false}
+                  animate={{ height: 'auto' }}
+                  transition={{ duration: 0.3 }}
+                  className="overflow-hidden"
+                >
+                  <Textarea
+                    name="notes"
+                    value={editedTask.notes}
+                    onChange={handleInputChange}
+                    placeholder="Add a note..."
+                    className={`w-full h-40 ${colorPalette.noteBackground} ${colorPalette.text} rounded-lg border-none focus:ring-2 focus:ring-blue-500 transition-all duration-300 ease-in-out`}
+                  />
+                </motion.div>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end">
+              <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="bg-blue-500 hover:bg-blue-600 text-white transition-colors duration-200"
+              >
+                {isSaving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </div>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+
+
 
 const Overview = ({ tasks, onNavigate, theme, onToggleComplete }) => {
   const [quadrantFilters, setQuadrantFilters] = useState([]);
@@ -948,6 +1167,38 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
       onError(error);
     }
   }, [onError]);
+
+  const handleEditTask = async (editedTask) => {
+    try {
+      const { data, error } = await supabase
+        .from('tasks')
+        .update({
+          title: editedTask.title,
+          notes: editedTask.notes || '',
+          urgent: editedTask.urgent,
+          important: editedTask.important
+        })
+        .eq('id', editedTask.id);
+
+      if (error) throw error;
+
+      // Update the task in the local state
+      setTaskHierarchy(prev => {
+        const updated = prev.map(level => ({
+          ...level,
+          tasks: level.tasks.map(task => 
+            task.id === editedTask.id ? { ...task, ...editedTask, notes: editedTask.notes || '' } : task
+          )
+        }));
+        return updated;
+      });
+
+      console.log('Task updated successfully');
+    } catch (error) {
+      console.error('Error updating task:', error);
+      throw error;
+    }
+  };
   
   // Add this function to your component to log the current state
   const logCurrentState = () => {
@@ -1671,7 +1922,7 @@ const TaskTracker = ({ onTaskComplete, onError }) => {
               tasks={currentLevel.tasks} 
               onOpenMatrix={navigateToTask}
               onAddTask={startAddingTask}
-              onEditTask={startEditingTask}
+              onEditTask={handleEditTask}
               onDeleteTask={startDeletingTask}
               onToggleComplete={toggleTaskCompletion}
               onOpenDetails={handleOpenDetails}
