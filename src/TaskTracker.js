@@ -580,7 +580,6 @@ const EditTaskModal = ({ isOpen, onClose, task, onSave, theme }) => {
       onClose();
     } catch (error) {
       console.error('Error saving task:', error);
-      // Handle error (e.g., show error message to user)
     } finally {
       setIsSaving(false);
     }
@@ -597,6 +596,8 @@ const EditTaskModal = ({ isOpen, onClose, task, onSave, theme }) => {
     noteBackground: 'bg-gray-800',
     notePlaceholder: 'text-gray-500',
     buttonHover: 'hover:bg-gray-700',
+    toggleBackground: 'bg-gray-700',
+    toggleActive: 'bg-blue-600',
   } : {
     background: 'bg-white',
     text: 'text-gray-900',
@@ -604,6 +605,8 @@ const EditTaskModal = ({ isOpen, onClose, task, onSave, theme }) => {
     noteBackground: 'bg-gray-50',
     notePlaceholder: 'text-gray-400',
     buttonHover: 'hover:bg-gray-100',
+    toggleBackground: 'bg-gray-200',
+    toggleActive: 'bg-blue-600',
   };
 
   return (
@@ -638,40 +641,38 @@ const EditTaskModal = ({ isOpen, onClose, task, onSave, theme }) => {
               </Button>
             </div>
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <Tooltip content={`Set Priority`}>
-                  <div className={`flex items-center ${priorityColor} font-medium`}>
-                    {editedTask.urgent && editedTask.important ? (
-                      <AlertTriangle className="mr-2" size={20} />
-                    ) : editedTask.urgent ? (
-                      <Clock className="mr-2" size={20} />
-                    ) : editedTask.important ? (
-                      <Target className="mr-2" size={20} />
-                    ) : (
-                      <Clock className="mr-2" size={20} />
-                    )}
-                    <span>
-                      {editedTask.urgent && editedTask.important ? 'High Priority' :
-                       editedTask.urgent ? 'Urgent' :
-                       editedTask.important ? 'Important' : 'Normal Priority'}
-                    </span>
-                  </div>
-                </Tooltip>
-                <div className="flex space-x-4">
-                  <div className="flex items-center">
-                    <span className={`mr-2 ${colorPalette.secondaryText}`}>Urgent</span>
-                    <Switch
-                      checked={editedTask.urgent}
-                      onCheckedChange={() => handleSwitchChange('urgent')}
-                    />
-                  </div>
-                  <div className="flex items-center">
-                    <span className={`mr-2 ${colorPalette.secondaryText}`}>Important</span>
-                    <Switch
-                      checked={editedTask.important}
-                      onCheckedChange={() => handleSwitchChange('important')}
-                    />
-                  </div>
+              <div className="flex flex-col space-y-4">
+                <div className={`flex items-center justify-between ${priorityColor} font-medium`}>
+                  {editedTask.urgent && editedTask.important ? (
+                    <AlertTriangle className="mr-2" size={20} />
+                  ) : editedTask.urgent ? (
+                    <Clock className="mr-2" size={20} />
+                  ) : editedTask.important ? (
+                    <Target className="mr-2" size={20} />
+                  ) : (
+                    <Clock className="mr-2" size={20} />
+                  )}
+                  <span>
+                    {editedTask.urgent && editedTask.important ? 'High Priority' :
+                     editedTask.urgent ? 'Urgent' :
+                     editedTask.important ? 'Important' : 'Normal Priority'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={`${colorPalette.secondaryText}`}>Urgent</span>
+                  <Switch
+                    checked={editedTask.urgent}
+                    onCheckedChange={() => handleSwitchChange('urgent')}
+                    className={`${colorPalette.toggleBackground} ${editedTask.urgent ? colorPalette.toggleActive : ''}`}
+                  />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={`${colorPalette.secondaryText}`}>Important</span>
+                  <Switch
+                    checked={editedTask.important}
+                    onCheckedChange={() => handleSwitchChange('important')}
+                    className={`${colorPalette.toggleBackground} ${editedTask.important ? colorPalette.toggleActive : ''}`}
+                  />
                 </div>
               </div>
               <div className={`flex items-center ${colorPalette.secondaryText}`}>
